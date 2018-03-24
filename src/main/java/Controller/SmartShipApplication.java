@@ -43,7 +43,7 @@ public class SmartShipApplication {
 			//copy customerIds file not to work on original file
 			copyFile(customerIdsFileSourcePath, customerIdsFileDestinationPath);
 
-			//load customer Ids workbook TODO slow?
+			//load customer Ids workbook
 			final Workbook customerIdsWorkbook = loadWorkbook(customerIdsFileDestinationPath);
 
 			//get first sheet of workbook
