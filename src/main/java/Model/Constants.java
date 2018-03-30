@@ -37,5 +37,6 @@ public class Constants {
 	//Errors
 	public static String COLUMN_NOT_FOUND_ERROR = "Couldn't find column name";
 	public static String FUEL_SURCHARGE_NOT_IN_RANGE = "FuelSurchargePercent not in the range of 0-1";
+	public static String COUNTRY_CODE_ERROR = "country code does not exist in table";
 
 }

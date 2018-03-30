@@ -48,6 +48,12 @@ public class SmartShipApplication {
 
 			//get first sheet of workbook
 			final Sheet customerIdSheet = customerIdsWorkbook.getSheet(customerIdsFileSheetNameCustomerIds);
+			//TODO check that all new customers from latest WB DHL are added/exist in the customer ID to name mapping
+			//TODO get all price lists from elad/liron
+			//TODO change extra weight diff calculation to be fetched from price list
+			//TODO run over all sheets in wb and not only one
+			//TODO run against latest WB file
+			//TODO check gui connection for app
 
 			//create customer  ID to name map
 			final Map<String, String> customerIdToNameMap = loadCustomerIdToNameMap(customerIdSheet, Constants.CUST_ID_COL, Constants.CUST_NAME_COL);
@@ -67,7 +73,7 @@ public class SmartShipApplication {
 			//get customer Ids from workbook
 			final HashSet<Customer> customerSet = getCustomerIdsFromWorkbook(invoiceWorkbook, customerIdCellAddress, customerIdToNameMap);
 
-			//create customer workbooks,  file for each customer //TODO develope to be able to run on a WB and not only on a sheet using for loop iteration
+			//create customer workbooks,  file for each customer //TODO develop to be able to run on a WB and not only on a sheet using for loop iteration
 			final Map<Customer, Workbook> mapCustomerToWorkbook = getCustomerToWbMap(invoiceSheet, customerSet);
 
 			//copy rows to customer workbooks //TODO slow - make faster
@@ -500,15 +506,13 @@ public class SmartShipApplication {
 		//iterate over all cells in workbook
 		for (int i = 1; i <= sheet.getLastRowNum(); i++) {
 			row = sheet.getRow(i);
-			customerId = dataFormatter.formatCellValue(row.getCell(idColumn));
 			//validate format, change names
-			customerName = dataFormatter.formatCellValue(row.getCell(nameColumn)).replaceAll(Constants.REGEX_ILLEGAL_CHARS, "");;
-			//TODO: fix reg ex here
-//			if (customerName.contains(Constants.REGEX_ILLEGAL_CHARS)){
-//				System.out.println("updated customer name from: " + customerName + "to " + customerName.replaceAll(Constants.REGEX_ONLY_NUMBERS_A_TO_Z_LETTERS, Constants.BLANK));
-//				customerName = customerName.replaceAll(Constants.REGEX_ILLEGAL_CHARS, "");
-//			}
-			idToNameMap.put(customerId, customerName);
+			customerId = dataFormatter.formatCellValue(row.getCell(idColumn)).replaceAll(Constants.REGEX_ONLY_NUMBERS, "");
+			//TODO improve reg-ex to include only a-z chars and numbers
+			customerName = dataFormatter.formatCellValue(row.getCell(nameColumn)).replaceAll(Constants.REGEX_ILLEGAL_CHARS, "");
+			if(!idToNameMap.containsKey(customerId)){
+				idToNameMap.put(customerId, customerName);
+			}
 		}
 		return idToNameMap;
 	}
@@ -695,10 +699,11 @@ public class SmartShipApplication {
 	/*
 	calculates freight cell value according to formula
 	CHARGE = [(customer price per region) X weight]  + [(fuel surcharge% * customer price per region)]
+	//TODO insurance value add with
 */
-
 	public static void calcCustomerFreight(Workbook workbook, Workbook custPriceListWb, Map<String, Integer> regionsMap) {
 		final Sheet sheet = workbook.getSheet(Constants.SHEET_NAME);
+		//init cells
 		int weightCol = -1;
 		int destinationCol = -1;
 		int freightCol = -1;
@@ -707,10 +712,13 @@ public class SmartShipApplication {
 			weightCol = findCellByName(sheet, Constants.WEIGHT_COL).getColumn();
 			destinationCol = findCellByName(sheet, Constants.DES_COL).getColumn();
 			freightCol = findCellByName(sheet, Constants.FREIGHT).getColumn();
+			//TODO insurance col if exists
+			//TODO DDP
+			//TODO Rishomon if exists
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-
+		//TODO get fuelSC % via web {http://www.dhl.co.il/en/express/shipping/shipping_advice/express_fuel_surcharge_eu.html}
 		double fuelScp = getFuelSurchargePercent();
 		if(fuelScp < 0 || fuelScp > 1){
 			throw new IllegalArgumentException(Constants.FUEL_SURCHARGE_NOT_IN_RANGE);
@@ -724,7 +732,7 @@ public class SmartShipApplication {
 		int zone;
 		double pricePerWeightAndZone;
 		double totalPrice;
-		//iterate over all rows in workbook
+		//iterate over all rows in customer workbook (each row=shipment)
 		for (int i = 1; i <= sheet.getLastRowNum(); i++) {
 			//get current row
 			row = sheet.getRow(i);
@@ -736,21 +744,24 @@ public class SmartShipApplication {
 			country = dataFormatter.formatCellValue(cell);
 
 			//get zone for country
-			zone = regionsMap.get(country).intValue();
-			/*
-			//started calcCustomerFreight on : GOODU ART LTD
-			java.lang.NullPointerException
-			at Controller.SmartShipApplication.calcCustomerFreight(SmartShipApplication.java:739)
-			 */
+			if(regionsMap.containsKey(country)){
+				zone = regionsMap.get(country);
+			}else if(regionsMap.containsKey(country.toUpperCase())){
+				zone = regionsMap.get(country.toUpperCase());
+			}else if(regionsMap.containsKey(country.toLowerCase())){
+				zone = regionsMap.get(country.toLowerCase());
+			}else {
+				throw new IllegalArgumentException(Constants.COUNTRY_CODE_ERROR);
+			}
 
 			//calc price according to weight and zone
-			pricePerWeightAndZone = getCustomerPrice(custPriceListWb, weight, zone);
+			pricePerWeightAndZone = getCustomerPrice(custPriceListWb, weight, zone); //TODO input sheet no need for WB
 			totalPrice = ( (1+ fuelScp) * pricePerWeightAndZone ); 					//fuelScp range:[0 - 1]
 
 			//write updated price value to cell
 			cell = row.getCell(freightCol);
 			cell.setCellValue(totalPrice);
-			System.out.println("updated cell : " + cell.getAddress() + " with a value of: " + totalPrice);
+			System.out.println("updated cell : " + cell.getAddress() + " with anew FRIEGHT value of: " + totalPrice);
 		}
 	}
 
@@ -759,9 +770,9 @@ public class SmartShipApplication {
 	 * //find closest base weight and get price example: weight is 11.5 , base =11K  D5-d53
 	 * Zone Cells: E4-K4, values: [1-7], ZONE_OFFSET = 3
 	 */
-	public static double getCustomerPrice(Workbook custPriceListWb, double weight, int zone) {
-		Sheet sheet = custPriceListWb.getSheet(Constants.SHEET_NAME); //TODO change name to constant in english
-		Row row;
+	public static double getCustomerPrice(Workbook custPriceListWb, double weight, int zone) {//TODO input sheet no need for WB
+		Sheet sheet = custPriceListWb.getSheet(Constants.SHEET_NAME);
+		Row row, nextRow;
 		Cell cell;
 		double baseWeight = 0;
 		double basePrice = 0;
@@ -775,6 +786,7 @@ public class SmartShipApplication {
 		//iterate over rows
 		for (int i = startRow; i <= endRow; i++) {
 			row = sheet.getRow(i);
+			//nextRow = sheet.getRow(i + 1);
 			cell = row.getCell(baseWeightCol);
 			//not to overflow
 			if (i + 1 <= endRow) {
@@ -794,7 +806,7 @@ public class SmartShipApplication {
 		//calc diff between table base weight and actual weight
 		diff = weight - baseWeight;
 
-		//add additional weight according to addition table, all cases:
+		//add additional weight according to addition table, all cases: TODO get from file and not statically
 		if (weight >= 10 && weight < 20) {
 			additionalPrice = ((diff / Constants.WEIGHT_MULTIPLIER) * (sheet.getRow(57).getCell(zoneCol).getNumericCellValue()));
 		} else if (weight >= 20 && weight < 30) {
