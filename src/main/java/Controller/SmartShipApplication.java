@@ -25,8 +25,10 @@ public class SmartShipApplication {
 
 		try {
 			//file paths
-			final String invoiceFileSourcePath = "inputdir/DHL Invoices/March - DHL invoice - with customerIds for test.xls";
-			final String invoiceFileSheetName = "TLV0000492709"; // used for copying the headline TODO: add this as part of the GLUFA
+			final String invoiceFileSourcePath = "inputdir/DHL Invoices/January - DHL invoice.xlsx";
+			//final String invoiceFileSourcePath = "inputdir/DHL Invoices/March - DHL invoice - with customerIds for test.xls";
+
+			final String invoiceFileSheetName = "TLV0000492709"; // used for copying the headline TODO: add this as part of the GLUFA EXCEL NEW FILE
 			final String invoiceFileDestinationPath = "outputdir/invoiceFile workbook" + System.currentTimeMillis() + ".xls";
 
 			final String customerIdsFileSourcePath = "inputdir/customer names to ids mapping/customersNamesToIdsMapping.xls"; // customer names to ID mapping file
@@ -34,20 +36,21 @@ public class SmartShipApplication {
 			final String customerIdsFileDestinationPath = "outputdir/customerIds workbook " + System.currentTimeMillis() + ".xls";
 
 			final String pathRegionToCountryFile = "inputdir/Region to country map/Regions to Country Mapping.xls";
-			final Workbook countryToRegionCodeWb = WorkbookFactory.create(new File(pathRegionToCountryFile)); //TODO instantiate with WorkbookFactory
+
+			final Workbook countryToRegionCodeWb = WorkbookFactory.create(new File(pathRegionToCountryFile));
 			final Sheet sheet = countryToRegionCodeWb.getSheet(Constants.SHEET_NAME);
-			int regionIndexCol = findCellByName(sheet, Constants.ZONE_NUM_COL).getColumn();
-			int regionNameCol = findCellByName(sheet, Constants.COUNTRY_COL).getColumn();
+			final int regionIndexCol = findCellByName(sheet, Constants.ZONE_NUM_COL).getColumn();
+			final int regionNameCol = findCellByName(sheet, Constants.COUNTRY_COL).getColumn();
+			final int custColName = findCellByName(sheet, Constants.CUSTOMER_COLUMN_NAME).getColumn();
 			final Map<String, Integer> countryToRegionCodeMap = loadRegionToCountryMap(sheet, regionIndexCol, regionNameCol);
 
 			//copy customerIds file not to work on original file
 			copyFile(customerIdsFileSourcePath, customerIdsFileDestinationPath);
-
 			//load customer Ids workbook
 			final Workbook customerIdsWorkbook = loadWorkbook(customerIdsFileDestinationPath);
-
 			//get first sheet of workbook
 			final Sheet customerIdSheet = customerIdsWorkbook.getSheet(customerIdsFileSheetNameCustomerIds);
+
 			//TODO check that all new customers from latest WB DHL are added/exist in the customer ID to name mapping
 			//TODO get all price lists from elad/liron
 			//TODO change extra weight diff calculation to be fetched from price list
@@ -64,34 +67,42 @@ public class SmartShipApplication {
 			//load copied invoice workbook
 			final Workbook invoiceWorkbook = loadWorkbook(invoiceFileDestinationPath);
 
-			//get first sheet of workbook
-			final Sheet invoiceSheet = invoiceWorkbook.getSheet(invoiceFileSheetName);
+			//map of customer Workbooks
+			Map<String, Workbook> mapCustomerToWorkbook = new HashMap<String, Workbook>();
 
-			//find cell address of customer reference(id)
-			final CellAddress customerIdCellAddress = findCellByName(invoiceSheet, Constants.REF_NUM_COLUMN_NAME);
+			//iterate over all sheets in workbook, create workbooks per customer
+			for (int i=0; i<invoiceWorkbook.getNumberOfSheets(); i++) {
 
-			//get customer Ids from workbook
-			final HashSet<Customer> customerSet = getCustomerIdsFromWorkbook(invoiceWorkbook, customerIdCellAddress, customerIdToNameMap);
+				final Sheet invoiceSheet = invoiceWorkbook.getSheetAt(i);
 
-			//create customer workbooks,  file for each customer //TODO develop to be able to run on a WB and not only on a sheet using for loop iteration
-			final Map<Customer, Workbook> mapCustomerToWorkbook = getCustomerToWbMap(invoiceSheet, customerSet);
+				//build customer set
+				final HashSet<String> customerSet = new HashSet<String>(getCustomerNamesFromSheet(invoiceSheet, custColName));
 
-			//copy rows to customer workbooks //TODO slow - make faster
-			copyRowsToCustomersWb(invoiceWorkbook, customerIdCellAddress, mapCustomerToWorkbook);
+				//create customer workbooks, file per customer
+				mapCustomerToWorkbook.putAll(createCustomerWbMap(invoiceSheet.getRow(Constants.FIRST_ROW_NUM), customerSet));
+			}
+			//iterate over all sheets in workbook, copy lines to customer workbook
+			for (int i=0; i<invoiceWorkbook.getNumberOfSheets(); i++) {
 
-			//calc freight cell value from formula per customer
-			calcFreightForAllCustomers(mapCustomerToWorkbook, countryToRegionCodeMap);
+				final Sheet invoiceSheet = invoiceWorkbook.getSheetAt(i);
+				//find cell address of customer reference(id)
+				final CellAddress customerIdCellAddress = findCellByName(invoiceSheet, Constants.REF_NUM_COLUMN_NAME);
+                //copy rows to customer workbooks 		//TODO slow - make faster
+                copyRowsToCustomersWb(invoiceWorkbook, customerIdCellAddress, mapCustomerToWorkbook);//TODO change to sheet inject ?
 
-			saveAndCloseWbAndFiles(mapCustomerToWorkbook);
+                //calc freight cell value from formula per customer
+                calcFreightForAllCustomers(mapCustomerToWorkbook, countryToRegionCodeMap);
 
+                saveAndCloseWbAndFiles(mapCustomerToWorkbook);
+            }
 			System.out.println(" Finished Main ");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 
-	//copies rows from src WB to des customer WB sheets //TODO slow - make faster
-	public static void copyRowsToCustomersWb(Workbook workbook, CellAddress customerIdCellAddress, Map<Customer, Workbook> mapCustomerToWorkbook) throws IOException {
+	//copies rows from invoice WB sheet to des customer WB sheet //TODO slow - make faster
+	public static void copyRowsToCustomersWb(Workbook workbook, CellAddress customerIdCellAddress, Map<String, Workbook> mapCustomerToWorkbook) throws IOException {
 		//iterate over all sheets in workbook
 		for (int sheetCount = 0; sheetCount < workbook.getNumberOfSheets(); sheetCount++) {
 			//add rows from main wb to to customers WBs
@@ -180,21 +191,25 @@ public class SmartShipApplication {
 	}
 
 	//returns a map of Customer to workbook, creates a new WB file per customer including wb headlines
-	public static Map<Customer, Workbook> getCustomerToWbMap(Sheet hssfSheet, HashSet<Customer> customerSet) {
-		Map<Customer, Workbook> mapCustomerWorkbook = new HashMap<Customer, Workbook>();
-		for (Customer customer : customerSet) {
-			Workbook wb = new HSSFWorkbook();
-			Sheet wbSheet = wb.createSheet(Constants.SHEET_NAME);
-			Row wbRow = wbSheet.createRow(Constants.FIRST_ROW_NUM);
-			//fill row 0 with headlines
-			final Row firstRow = hssfSheet.getRow(0);
-			for (int cellCount = 0; cellCount < firstRow.getLastCellNum(); cellCount++) {
-				wbRow.createCell(cellCount).setCellValue(firstRow.getCell(cellCount).getStringCellValue());
-			}
-			mapCustomerWorkbook.put(customer, wb);
-			System.out.println("created customer wb with name: " + customer.getName() + " and id: " + customer.getId());
+	public static Map<String, Workbook> createCustomerWbMap(Row firstRow, HashSet<String> customerSet) {
+		Map<String, Workbook> mapCustomerWorkbook = new HashMap<String, Workbook>();
+		for (String customer : customerSet) {
+			mapCustomerWorkbook.put(customer, createCustomerWb(firstRow));
+			System.out.println("created customer wb with name: " + customer);
 		}
 		return mapCustomerWorkbook;
+	}
+
+	public static Workbook createCustomerWb(Row firstRow) {
+		//extract these lines to a method that returns a new WB file
+		Workbook wb = new HSSFWorkbook(); 						//TODO use WB FACTORY
+		Sheet wbSheet = wb.createSheet(Constants.SHEET_NAME);
+		Row wbRow = wbSheet.createRow(Constants.FIRST_ROW_NUM);
+		//fill first row with headlines
+		for (int cellCount = 0; cellCount < firstRow.getLastCellNum(); cellCount++) {
+			wbRow.createCell(cellCount).setCellValue(firstRow.getCell(cellCount).getStringCellValue());
+		}
+		return wb;
 	}
 
 	/**
@@ -562,7 +577,7 @@ public class SmartShipApplication {
 		return new HashSet<String>(customerList);
 	}
 
-	//gets customer names from one sheet
+	//gets customer names from one sheet, "clean" names from unwanted characters
 	public static List<String> getCustomerNamesFromSheet(Sheet hssfSheet, int columnIndex) {
 		List<String> customerNames = new ArrayList<String>();
 		Iterator<Row> rowIterator = hssfSheet.iterator();
@@ -576,9 +591,9 @@ public class SmartShipApplication {
 				if ((cell.getColumnIndex() == columnIndex) && (cell.getRowIndex() != 0)) {
 					//remove un-needed characters from name
 					String cellVal = cell.getStringCellValue();
-					if (!cellVal.equals(cellVal.replaceAll("[\\-\\+\\.\\^:,/]", ""))) {
-						System.out.println("old Cell Value: " + cellVal + " changed to new cell value: " + cellVal.replaceAll("[\\-\\+\\.\\^:,/]", ""));
-						cell.setCellValue(cell.getStringCellValue().replaceAll("[\\-\\+\\.\\^:,/]", ""));
+					if (!cellVal.equals(cellVal.replaceAll(Constants.REGEX_FILTER_UNWANTED_CHARS, ""))) {
+						System.out.println("old Cell Value: " + cellVal + " changed to new cell value: " + cellVal.replaceAll(Constants.REGEX_FILTER_UNWANTED_CHARS, ""));
+						cell.setCellValue(cell.getStringCellValue().replaceAll(Constants.REGEX_FILTER_UNWANTED_CHARS, ""));
 					}
 					customerNames.add(cell.getStringCellValue());
 					break;
