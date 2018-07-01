@@ -31,6 +31,7 @@ public class SmartShipApplication {
     public static void main(String[] args) {
         try {
             //file paths
+            //Start with getting all info and sort to prioritize
             final String invoiceFileSourcePath = "inputdir/DHL Invoices/April-DHL invoice.xlsx";
             final String invoiceFileDestinationPath = "outputdir/invoiceFile workbook" + System.currentTimeMillis() + ".xls";
             final String customerIdsFileSourcePath = "inputdir/customer names to ids mapping/customersNamesToIdsMapping.xls"; // customer names to ID mapping file
