@@ -3,7 +3,6 @@ package Controller;
 import Model.Constants;
 import Model.Customer;
 import org.apache.commons.io.FileUtils;
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellAddress;
 import org.apache.poi.ss.util.CellRangeAddress;
@@ -16,11 +15,11 @@ import java.io.IOException;
 import java.util.*;
 
 /**
- * Created by ARIELPE on 4/2/2017.
+ * Created by Ariel Peretz, Smartship company 2018
  */
 
 //TODO check that all new customers from latest WB DHL are added/exist in the customer ID to name mapping
-//TODO change extra weight diff calculation to be fetched from price list instead of ifelse
+//TODO change extra weight diff calculation to be fetched from price list instead of if else
 //TODO check gui connection for app
 //TODO create new WB for errors and unknown customers to be viewed manually
 //TODO check that names are formatted correctly
@@ -30,54 +29,100 @@ public class SmartShipApplication {
 
     public static void main(String[] args) {
         try {
-            //file paths
-            //Start with getting all info and sort to prioritize
-            final String invoiceFileSourcePath = "inputdir/DHL Invoices/April-DHL invoice.xlsx";
-            final String invoiceFileDestinationPath = "outputdir/invoiceFile workbook" + System.currentTimeMillis() + ".xls";
-            final String customerIdsFileSourcePath = "inputdir/customer names to ids mapping/customersNamesToIdsMapping.xls"; // customer names to ID mapping file
-            final String customerIdsFileDestinationPath = "outputdir/customerIds workbook " + System.currentTimeMillis() + ".xls";
-            final String pathRegionToCountryFile = "inputdir/Region to country map/Regions to Country Mapping.xls";
+            //folder paths
+            final String inputDir = "inputdir";
+            final String outputDir = "outputdir";
+            final String customerPriceLists = "customer price lists";
 
-            final Workbook countryToRegionCodeWb = loadWorkbook(pathRegionToCountryFile);
+            //file paths
+            final String invoiceFileSourcePath = inputDir + "/DHL Invoices/March 3rd 2018.xlsx";
+            final String invoiceFileDestinationPath =  outputDir + "/invoiceFile workbook" + System.currentTimeMillis() + ".xls";
+
+            //copy invoice file not to work on original file
+            copyFile(invoiceFileSourcePath, invoiceFileDestinationPath);
+
+            final String regionToCountryFile = inputDir + "/Region to country map/Regions to Country Mapping.xls";
+            final Workbook countryToRegionCodeWb = loadWb(regionToCountryFile);
             final Sheet sheet = countryToRegionCodeWb.getSheet(Constants.SHEET_NAME);
             final int regionIndexCol = findCellByName(sheet, Constants.ZONE_NUM_COL).getColumn();
             final int regionNameCol = findCellByName(sheet, Constants.COUNTRY_COL).getColumn();
             final Map<String, Integer> countryToRegionCodeMap = loadRegionToCountryMap(sheet, regionIndexCol, regionNameCol);
 
-            //copy customerIds file not to work on original file
-            copyFile(customerIdsFileSourcePath, customerIdsFileDestinationPath);
 
-            //copy invoice file not to work on original file
-            copyFile(invoiceFileSourcePath, invoiceFileDestinationPath);
-
-            final Workbook invoiceWorkbook = loadWorkbook(invoiceFileDestinationPath);
+            final Workbook invoiceWb = loadWb(invoiceFileDestinationPath);
             //set of customer names
-            final HashSet<String> customerSet = new HashSet<String>(); //TODO think about using only map keys instead of 2 DS set+map
-            //map of customer Workbooks
-            final Map<String, Workbook> mapCustomerToWorkbook = new HashMap<String, Workbook>();
-            //sheet for copying sheet info to customer sheets
-            Sheet invoiceSheet = invoiceWorkbook.getSheetAt(Constants.FIRST_SHHET_NUM);
-            //Row for copying row info to customer rows
-            //get correct customer name, column name
-            final int custColName = findCellByName(invoiceSheet, Constants.CUSTOMER_COLUMN_NAME).getColumn();
+            final Map<String, String> customerNameToFileName = new HashMap<String, String>();
 
+            System.out.println("******************************");
+
+            //map of customer Workbooks
+            final Map<String, Workbook> mapCustomerFileNameWb = new HashMap<String, Workbook>();
+            //sheet for copying sheet info to customer sheets
+            Sheet invoiceSheet = invoiceWb.getSheetAt(Constants.FIRST_SHHET_NUM);
+            //find customer-name column id
+            final int customerColName = findCellByName(invoiceSheet, Constants.CUSTOMER_COLUMN_NAME).getColumn();
+            //Row for copying row info to customer rows
             final Row row = invoiceSheet.getRow(Constants.FIRST_ROW_NUM);
 
-            //fill set with customer names from wb
-            for (int i = 0; i < invoiceWorkbook.getNumberOfSheets(); i++) {
-                invoiceSheet = invoiceWorkbook.getSheetAt(i);
-                customerSet.addAll(getCustomerNamesFromSheet(invoiceSheet, custColName));
+            System.out.println("******************************");
+
+            //get customer names from invoice wb and map to file names TODO extract out
+            for (int i = 0; i < invoiceWb.getNumberOfSheets(); i++) {
+                invoiceSheet = invoiceWb.getSheetAt(i);
+                customerNameToFileName.putAll(getCustomerNamesAndFileNamesFromSheet(invoiceSheet, customerColName));
             }
-            //create customer workbooks, file per customer
-            mapCustomerToWorkbook.putAll(createCustomerWbMap(row, customerSet)); //TODO DEBUGGING REACHED HERE
+
+            System.out.println("******************************");
+
+            //get names of customer price list folder  TODO extract to outer method for log&report&flow control
+            final File folder = new File(inputDir + "/" + customerPriceLists + "/");
+            final File[] files = folder.listFiles();
+            final Set<String> priceListFileNames = new HashSet<String>();
+            System.out.println("******************************");
+            System.out.println("priceListFiles... ");
+            for (File file:files){
+                priceListFileNames.add(file.getName());
+                System.out.println("price List File: " + file.getName());
+            }
+            System.out.println("******************************");
+
+            //check if there are price lists per customer and log
+            System.out.println("******************************");
+            System.out.println("customer names not in price list ");
+            for (String fileName:customerNameToFileName.values()){
+                if(!priceListFileNames.contains(fileName + Constants.XLSX_FILE_ENDING)){
+                    System.out.println(fileName + " is not in priceListFileNames");
+                }
+            }
+            System.out.println("******************************");
+
+            //create customer workbooks, file per customer name
+            mapCustomerFileNameWb.putAll(createCustomerWbMap(row, customerNameToFileName));
+
             //find cell address of customer reference(id)
-            final CellAddress customerIdCellAddress = findCellByName(invoiceSheet, Constants.REF_NUM_COLUMN_NAME);
+            final CellAddress customerIdCellAddress = findCellByName(invoiceSheet, Constants.CUSTOMER_COLUMN_NAME);
+
+            System.out.println("******************************");
+
             //copy rows to customer workbooks
-            copyRowsToCustomersWb(invoiceWorkbook, customerIdCellAddress, mapCustomerToWorkbook);
+            copyRowsToCustomersWb(invoiceWb, customerIdCellAddress, mapCustomerFileNameWb);
+
+            System.out.println(" ");
+            System.out.println("******************************");
+
+
             //calc freight cell value from formula per customer
-            calcFreightForAllCustomers(mapCustomerToWorkbook, countryToRegionCodeMap);
+            calcFreightForAllCustomers(mapCustomerFileNameWb, countryToRegionCodeMap);//TODO DEBUGGING REACHED HERE
+
+            System.out.println(" ");
+            System.out.println("******************************");
+
+
             //write files do disk
-            saveAndCloseWbAndFiles(mapCustomerToWorkbook);
+            saveAndCloseWbFiles(mapCustomerFileNameWb);
+
+            System.out.println(" ");
+            System.out.println("******************************");
 
             System.out.println(" Finished Main ");
         } catch (Exception e) {
@@ -85,25 +130,37 @@ public class SmartShipApplication {
         }
     }
 
-    //copies rows from invoice WB sheet to des customer WB sheet //TODO slow - make faster
-    public static void copyRowsToCustomersWb(Workbook workbook, CellAddress customerIdCellAddress, Map<String, Workbook> mapCustomerToWorkbook) throws IOException {
+
+
+
+
+
+
+
+
+
+    //copies rows from invoice WB sheet to des customer WB sheet //TODO slow - make faster use threads in parallel ?
+    public static void copyRowsToCustomersWb(Workbook workbook, CellAddress customerIdCellAddress, Map<String, Workbook> mapCustomerToWb) throws IOException {
         //iterate over all sheets in workbook
         for (int sheetCount = 0; sheetCount < workbook.getNumberOfSheets(); sheetCount++) {
             //add rows from main wb to to customers WBs
             final Sheet originalSheet = workbook.getSheetAt(sheetCount);
             Row originalRow;
-            Workbook customerWorkbook;
+            Workbook customerWb;
             Sheet customerSheet;
             Row customerRow;
             final DataFormatter dataFormatter = new DataFormatter();
             //iterate over all cells in workbook
             for (int i = 1; i <= originalSheet.getLastRowNum(); i++) {
                 originalRow = originalSheet.getRow(i);
-                String customerId = dataFormatter.formatCellValue(originalRow.getCell(customerIdCellAddress.getColumn()));
+                String customerName = dataFormatter.formatCellValue(originalRow.getCell(customerIdCellAddress.getColumn()));
 
                 //get current customer wb, sheet
-                customerWorkbook = mapCustomerToWorkbook.get(customerId);
-                customerSheet = customerWorkbook.getSheet(Constants.SHEET_NAME);
+                customerWb = mapCustomerToWb.get(customerName);
+                if (customerWb == null){
+                    throw new NullPointerException(Constants.WB_NOT_FOUND_ERROR);
+                }
+                customerSheet = customerWb.getSheet(Constants.SHEET_NAME);
 
                 //create Row in new sheet
                 int customerRowIndex = customerSheet.getLastRowNum() + 1;
@@ -163,38 +220,51 @@ public class SmartShipApplication {
     }
 
     //saves and closes open WB files
-    public static void saveAndCloseWbAndFiles(Map<String, Workbook> mapCustomerToWorkbook) throws IOException {
+    public static void saveAndCloseWbFiles(Map<String, Workbook> mapCustomerFileNameToWb) throws IOException {
         //save and close workbooks and files
-        for (String customer : mapCustomerToWorkbook.keySet()) {
+        for (String customerFileName : mapCustomerFileNameToWb.keySet()) {
             //close and save
-            FileOutputStream fileOutCust = new FileOutputStream("outputdir/customers/" + customer + ".xls");
-            mapCustomerToWorkbook.get(customer).write(fileOutCust);
-            System.out.println(" Wrote workbook file to disk: " + customer);
-            fileOutCust.close();
-            System.out.println(" Closed file: " + customer + ".xls");
+            FileOutputStream fileOutCustomer = new FileOutputStream("outputdir/customers/" + customerFileName + ".xls");
+            mapCustomerFileNameToWb.get(customerFileName).write(fileOutCustomer);
+            System.out.println(" Wrote workbook file to disk: " + customerFileName);
+            fileOutCustomer.close();
+            System.out.println(" Closed file: " + customerFileName + ".xls");
         }
     }
 
     //returns a map of Customer to workbook, creates a new WB file per customer including wb headlines
-    public static Map<String, Workbook> createCustomerWbMap(Row firstRow, HashSet<String> customerSet) {
-        Map<String, Workbook> mapCustomerWorkbook = new HashMap<String, Workbook>();
-        for (String customer : customerSet) {
-            mapCustomerWorkbook.put(customer, createCustomerWb(firstRow));
+    public static Map<String, Workbook> createCustomerWbMap(Row firstRow, Map<String, String> customerNameToFileName) {
+        final Map<String, Workbook> mapCustomerFileNameWorkbook = new HashMap<String, Workbook>();
+        for (String customer : customerNameToFileName.values()) {
+            mapCustomerFileNameWorkbook.put(customer, createCustomerWb(firstRow,"outputdir/customers/" + customer +Constants.XLSX_FILE_ENDING));
             System.out.println("created customer wb with name: " + customer);
         }
-        return mapCustomerWorkbook;
+        return mapCustomerFileNameWorkbook;
     }
 
-    //creates a wb with a row used as headline
-    public static Workbook createCustomerWb(Row firstRow) {
-        Workbook wb = new HSSFWorkbook();   //TODO upgrade to WBFactory.create(file)
-        Sheet wbSheet = wb.createSheet(Constants.SHEET_NAME);
-        Row wbRow = wbSheet.createRow(Constants.FIRST_ROW_NUM);
-        //fill first row with headlines
-        for (int cellCount = 0; cellCount < firstRow.getLastCellNum(); cellCount++) {
-            wbRow.createCell(cellCount).setCellValue(firstRow.getCell(cellCount).getStringCellValue());
+    //creates a wb with a row used as headline //TODO see if can be refactored to a cleaner more self exp code
+    public static Workbook createCustomerWb(Row firstRow, String path) {
+        File file = new File(path);
+        try {
+            FileInputStream fIP = new FileInputStream(file);
+            //Get the Workbook instance for XLS file
+            Workbook wb = WorkbookFactory.create(fIP);
+            if (file.isFile() && file.exists()) {
+                System.out.println(path + " created wb successfully ");
+            } else {
+                System.out.println(" Error creating wb " + path);
+            }
+            Sheet wbSheet = wb.createSheet(Constants.SHEET_NAME);
+            Row wbRow = wbSheet.createRow(Constants.FIRST_ROW_NUM);
+            //fill first row with headlines
+            for (int cellCount = 0; cellCount < firstRow.getLastCellNum(); cellCount++) {
+                wbRow.createCell(cellCount).setCellValue(firstRow.getCell(cellCount).getStringCellValue());
+            }
+            return wb;
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        return wb;
+        throw new IllegalStateException();
     }
 
     //prints all cell data from a given sheet
@@ -297,8 +367,8 @@ public class SmartShipApplication {
     }
 
     //gets customer names from one sheet, "clean" names from unwanted characters
-    public static List<String> getCustomerNamesFromSheet(Sheet hssfSheet, int columnIndex) {
-        List<String> customerNames = new ArrayList<String>();
+    public static  Map<String, String> getCustomerNamesAndFileNamesFromSheet(Sheet hssfSheet, int columnIndex) {
+        Map<String, String> customerNameToFile = new HashMap<String, String>();
         Iterator<Row> rowIterator = hssfSheet.iterator();
         Iterator<Cell> cellIterator;
         while (rowIterator.hasNext()) {
@@ -308,18 +378,19 @@ public class SmartShipApplication {
                 Cell cell = cellIterator.next();
                 //checking if in proper column and in values section
                 if ((cell.getColumnIndex() == columnIndex) && (cell.getRowIndex() != 0)) {
-                    //remove un-needed characters from name
-                    String cellVal = cell.getStringCellValue();
-                    if (!cellVal.equals(cellVal.replaceAll(Constants.REGEX_FILTER_UNWANTED_CHARS, ""))) {
-                        System.out.println("old Cell Value: " + cellVal + " changed to new cell value: " + cellVal.replaceAll(Constants.REGEX_FILTER_UNWANTED_CHARS, ""));
-                        cell.setCellValue(cell.getStringCellValue().replaceAll(Constants.REGEX_FILTER_UNWANTED_CHARS, ""));
+                    String customerNameAsInSheet = cell.getStringCellValue();
+                    //fileName= customer name in upper case -minus illegal characters
+                    String customerFileName = customerNameAsInSheet.replaceAll(Constants.REGEX_FILTER_UNWANTED_CHARS, " ").toUpperCase();
+                    if (!customerNameToFile.containsKey(customerNameAsInSheet)){
+                        customerNameToFile.put(customerNameAsInSheet, customerFileName);
+                        System.out.println("Added customer: " + customerNameAsInSheet + " with file name: " + customerFileName);
                     }
-                    customerNames.add(cell.getStringCellValue());
+
                     break;
                 }
             }
         }
-        return customerNames;
+        return customerNameToFile;
     }
 
     //copies file
@@ -333,7 +404,7 @@ public class SmartShipApplication {
     }
 
     //loads workbook
-    public static Workbook loadWorkbook(String path) {
+    public static Workbook loadWb(String path) {
         //read file contents
         File file = new File(path);
         try {
@@ -373,7 +444,7 @@ public class SmartShipApplication {
         for (String customer : customersMap.keySet()) {
             System.out.println("started calcCustomerFreight on : " + customer);
             //load customer price list
-            final Workbook custPriceListWb = loadWorkbook("inputdir/customer price lists/" + customer + " " + Constants.PL_FILE_ENDING);
+            final Workbook custPriceListWb = loadWb("inputdir/customer price lists/" + customer + " " + Constants.PL_FILE_ENDING); //TODO use constans instead of strings
             calcCustomerFreight(customersMap.get(customer), custPriceListWb, regionsMap);
         }
     }
@@ -573,7 +644,7 @@ public class SmartShipApplication {
 
             String pathToFile = "outputdir/customers/workbook " + customerName;
             try {
-                Workbook customerWorkbook = loadWorkbook(pathToFile);
+                Workbook customerWorkbook = loadWb(pathToFile);
                 Sheet customerSheet = customerWorkbook.getSheet(customerName);
                 Row customerRow = customerSheet.createRow(rowNum);
                 //copy rows:
@@ -768,11 +839,12 @@ public class SmartShipApplication {
         int columnIndex = cellAddress.getColumn();
         for (int i = 0; i < numOfSheets; i++) {
             hssfSheet = (Sheet) workbook.getSheetAt(i);
-            customerList.addAll(getCustomerNamesFromSheet(hssfSheet, columnIndex));
+            //customerList.addAll(getCustomerNamesAndFileNamesFromSheet(hssfSheet, columnIndex));
         }
         return new HashSet<String>(customerList);
     }
 
+    //clean illegal chars
     public static void removeIllegalCharactersFromColumnInSheet(Sheet sheet, int columnIndex) {
         Iterator<Row> rowIterator = sheet.iterator();
         Iterator<Cell> cellIterator;
@@ -834,11 +906,21 @@ public class SmartShipApplication {
         return idToNameMap;
     }
 
-    public void createPriceListFiles(List<String> names) {
+    public static void createPriceListFiles(List<String> names) {
         //create files price list per customer
+        File folder = new File("inputdir/customer price lists/");
+        List<String> list = Arrays.asList(folder.list());
         for (String s : names) {
-            copyFile("inputdir/customer price lists/bananot price list.xlsx", "inputdir/customer price lists/" + s + " " + Constants.PL_FILE_ENDING);
+            if(!list.contains(s + " " + Constants.PL_FILE_ENDING)){
+                copyFile("inputdir/customer price lists/EXAMPLE CUSTOMER PRICE LIST.xlsx", "inputdir/customer price lists/" + s + Constants.XLSX_FILE_ENDING);
+                System.out.println("created file for: " + s);
+            }
+            else {
+                System.out.println("file: " + s + " Already exists");
+            }
         }
     }
+
+    //createPriceListFiles(new ArrayList<String>(customerNameToFileName.values()));
 
 }
