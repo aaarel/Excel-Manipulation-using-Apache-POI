@@ -29,19 +29,15 @@ public class SmartShipApplication {
 
     public static void main(String[] args) {
         try {
-            //folder paths
-            final String inputDir = "inputdir";
-            final String outputDir = "outputdir";
-            final String customerPriceLists = "customer price lists";
 
             //file paths
-            final String invoiceFileSourcePath = inputDir + "/DHL Invoices/March 3rd 2018.xlsx";
-            final String invoiceFileDestinationPath =  outputDir + "/invoiceFile workbook" + System.currentTimeMillis() + ".xls";
+            final String invoiceFileSourcePath = Constants.INPUT_DIR + "/DHL Invoices/March 3rd 2018.xlsx";
+            final String invoiceFileDestinationPath =  Constants.OUTPUT_DIR  + "/invoiceFile workbook" + System.currentTimeMillis() + ".xls";
 
             //copy invoice file not to work on original file
             copyFile(invoiceFileSourcePath, invoiceFileDestinationPath);
 
-            final String regionToCountryFile = inputDir + "/Region to country map/Regions to Country Mapping.xls";
+            final String regionToCountryFile = Constants.INPUT_DIR  + "/Region to country map/Regions to Country Mapping.xls";
             final Workbook countryToRegionCodeWb = loadWb(regionToCountryFile);
             final Sheet sheet = countryToRegionCodeWb.getSheet(Constants.SHEET_NAME);
             final int regionIndexCol = findCellByName(sheet, Constants.ZONE_NUM_COL).getColumn();
@@ -75,7 +71,7 @@ public class SmartShipApplication {
             System.out.println("******************************");
 
             //get names of customer price list folder  TODO extract to outer method for log&report&flow control
-            final File folder = new File(inputDir + "/" + customerPriceLists + "/");
+            final File folder = new File(Constants.INPUT_DIR  + "/" + Constants.CUSTOMER_PRICE_LISTS + "/");
             final File[] files = folder.listFiles();
             final Set<String> priceListFileNames = new HashSet<String>();
             System.out.println("******************************");
@@ -105,7 +101,7 @@ public class SmartShipApplication {
             System.out.println("******************************");
 
             //copy rows to customer workbooks
-            copyRowsToCustomersWb(invoiceWb, customerIdCellAddress, mapCustomerFileNameWb);
+            copyRowsToCustomersWb(invoiceWb, customerIdCellAddress, mapCustomerFileNameWb, customerNameToFileName);
 
             System.out.println(" ");
             System.out.println("******************************");
@@ -140,23 +136,28 @@ public class SmartShipApplication {
 
 
     //copies rows from invoice WB sheet to des customer WB sheet //TODO slow - make faster use threads in parallel ?
-    public static void copyRowsToCustomersWb(Workbook workbook, CellAddress customerIdCellAddress, Map<String, Workbook> mapCustomerToWb) throws IOException {
+    public static void copyRowsToCustomersWb(Workbook wb, CellAddress customerIdCellAddress, Map<String, Workbook> mapCustomerToWb, Map<String, String> customerNameToFileName)  {
         //iterate over all sheets in workbook
-        for (int sheetCount = 0; sheetCount < workbook.getNumberOfSheets(); sheetCount++) {
+        for (int sheetCount = 0; sheetCount < wb.getNumberOfSheets(); sheetCount++) {
             //add rows from main wb to to customers WBs
-            final Sheet originalSheet = workbook.getSheetAt(sheetCount);
+            final Sheet originalSheet = wb.getSheetAt(sheetCount);
             Row originalRow;
             Workbook customerWb;
             Sheet customerSheet;
             Row customerRow;
+            String customerName;
+            String customerFileName;
             final DataFormatter dataFormatter = new DataFormatter();
             //iterate over all cells in workbook
             for (int i = 1; i <= originalSheet.getLastRowNum(); i++) {
                 originalRow = originalSheet.getRow(i);
-                String customerName = dataFormatter.formatCellValue(originalRow.getCell(customerIdCellAddress.getColumn()));
-
+                customerName = dataFormatter.formatCellValue(originalRow.getCell(customerIdCellAddress.getColumn()));
+                customerFileName = customerNameToFileName.get(customerName);
+                if (customerFileName == null){
+                    throw new NullPointerException(Constants.WB_NOT_FOUND_ERROR);
+                }
                 //get current customer wb, sheet
-                customerWb = mapCustomerToWb.get(customerName);
+                customerWb = mapCustomerToWb.get(customerFileName);
                 if (customerWb == null){
                     throw new NullPointerException(Constants.WB_NOT_FOUND_ERROR);
                 }
@@ -171,13 +172,10 @@ public class SmartShipApplication {
                     Cell cell = customerRow.createCell(j);
                     Cell originalCell = originalRow.getCell(j);
 
-                    //
                     //Copy style from old cell and apply to new cell
                     //HSSFCellStyle newCellStyle = workbook.createCellStyle();
                     //newCellStyle.cloneStyleFrom(originalCell.getCellStyle()); //TODO fix styling of cells later
                     //cell.setCellStyle(newCellStyle);
-                    //
-
 
                     // If there is a cell comment, copy
                     if (originalCell.getCellComment() != null) {
@@ -234,37 +232,24 @@ public class SmartShipApplication {
 
     //returns a map of Customer to workbook, creates a new WB file per customer including wb headlines
     public static Map<String, Workbook> createCustomerWbMap(Row firstRow, Map<String, String> customerNameToFileName) {
-        final Map<String, Workbook> mapCustomerFileNameWorkbook = new HashMap<String, Workbook>();
+        final Map<String, Workbook> mapCustomerFileNameWb = new HashMap<String, Workbook>();
         for (String customer : customerNameToFileName.values()) {
-            mapCustomerFileNameWorkbook.put(customer, createCustomerWb(firstRow,"outputdir/customers/" + customer +Constants.XLSX_FILE_ENDING));
+            mapCustomerFileNameWb.put(customer, createCustomerWb(firstRow,"outputdir/customers/" + customer +Constants.XLSX_FILE_ENDING));
             System.out.println("created customer wb with name: " + customer);
         }
-        return mapCustomerFileNameWorkbook;
+        return mapCustomerFileNameWb;
     }
 
     //creates a wb with a row used as headline //TODO see if can be refactored to a cleaner more self exp code
     public static Workbook createCustomerWb(Row firstRow, String path) {
-        File file = new File(path);
-        try {
-            FileInputStream fIP = new FileInputStream(file);
-            //Get the Workbook instance for XLS file
-            Workbook wb = WorkbookFactory.create(fIP);
-            if (file.isFile() && file.exists()) {
-                System.out.println(path + " created wb successfully ");
-            } else {
-                System.out.println(" Error creating wb " + path);
-            }
-            Sheet wbSheet = wb.createSheet(Constants.SHEET_NAME);
-            Row wbRow = wbSheet.createRow(Constants.FIRST_ROW_NUM);
-            //fill first row with headlines
-            for (int cellCount = 0; cellCount < firstRow.getLastCellNum(); cellCount++) {
-                wbRow.createCell(cellCount).setCellValue(firstRow.getCell(cellCount).getStringCellValue());
-            }
-            return wb;
-        } catch (Exception e) {
-            e.printStackTrace();
+        Workbook wb = new XSSFWorkbook();
+        Sheet wbSheet = wb.createSheet(Constants.SHEET_NAME);
+        Row wbRow = wbSheet.createRow(Constants.FIRST_ROW_NUM);
+        //fill first row with headlines
+        for (int cellCount = 0; cellCount < firstRow.getLastCellNum(); cellCount++) {
+            wbRow.createCell(cellCount).setCellValue(firstRow.getCell(cellCount).getStringCellValue());
         }
-        throw new IllegalStateException();
+        return wb;
     }
 
     //prints all cell data from a given sheet
@@ -440,12 +425,12 @@ public class SmartShipApplication {
     }
 
     //calculates freight for all customers
-    public static void calcFreightForAllCustomers(Map<String, Workbook> customersMap, Map<String, Integer> regionsMap) {
-        for (String customer : customersMap.keySet()) {
+    public static void calcFreightForAllCustomers(Map<String, Workbook> mapCustomerFileNameWb, Map<String, Integer> regionsMap) {
+        for (String customer : mapCustomerFileNameWb.keySet()) {
             System.out.println("started calcCustomerFreight on : " + customer);
             //load customer price list
-            final Workbook custPriceListWb = loadWb("inputdir/customer price lists/" + customer + " " + Constants.PL_FILE_ENDING); //TODO use constans instead of strings
-            calcCustomerFreight(customersMap.get(customer), custPriceListWb, regionsMap);
+            final Workbook customerPriceListWb = loadWb(Constants.INPUT_DIR  + "/" + Constants.CUSTOMER_PRICE_LISTS + "/" + customer + Constants.XLSX_FILE_ENDING);
+            calcCustomerFreight(mapCustomerFileNameWb.get(customer), customerPriceListWb, regionsMap);
         }
     }
 
@@ -453,19 +438,21 @@ public class SmartShipApplication {
      * calculates freight cell value according to formula
      * formula: CHARGE = [(customer price per region) X weight]  + [(fuel surcharge% * customer price per region)]
      * //TODO insurance value add with
+     * //TODO fuel surecharge is ynamic - how to get externally every time
+     *
      *
      * @param workbook
-     * @param custPriceListWb
+     * @param customerPriceListWb
      * @param regionsMap
      */
-    public static void calcCustomerFreight(Workbook workbook, Workbook custPriceListWb, Map<String, Integer> regionsMap) {
+    public static void calcCustomerFreight(Workbook workbook, Workbook customerPriceListWb, Map<String, Integer> regionsMap) {
         final Sheet sheet = workbook.getSheet(Constants.SHEET_NAME);
         //init cells
         int weightCol = -1;
         int destinationCol = -1;
         int freightCol = -1;
 
-        try {
+        try {//TODO DEBUGGING STOPPED HERE
             weightCol = findCellByName(sheet, Constants.WEIGHT_COL).getColumn();
             destinationCol = findCellByName(sheet, Constants.DES_COL).getColumn();
             freightCol = findCellByName(sheet, Constants.FREIGHT).getColumn();
@@ -475,7 +462,8 @@ public class SmartShipApplication {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        //TODO get fuelSC % via web {http://www.dhl.co.il/en/express/shipping/shipping_advice/express_fuel_surcharge_eu.html}
+        //TODO get fuelSC %
+        // via web {http://www.dhl.co.il/en/express/shipping/shipping_advice/express_fuel_surcharge_eu.html}
         final double fuelScp = getFuelSurchargePercent();
         if (fuelScp < 0 || fuelScp > 1) {
             throw new IllegalArgumentException(Constants.FUEL_SURCHARGE_NOT_IN_RANGE);
@@ -512,7 +500,7 @@ public class SmartShipApplication {
             }
 
             //calc price according to weight and zone
-            pricePerWeightAndZone = getCustomerPrice(custPriceListWb, weight, zone); //TODO input sheet no need for WB
+            pricePerWeightAndZone = getCustomerPrice(customerPriceListWb, weight, zone); //TODO input sheet no need for WB
             totalPrice = ((1 + fuelScp) * pricePerWeightAndZone);                    //fuelScp range:[0 - 1]
 
             //write updated price value to cell
