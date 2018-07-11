@@ -313,10 +313,9 @@ public class UtilityMethods {
     //calculates freight for all customers in map
     public static void calcFreightForAllCustomers(Map<String, Workbook> mapCustomerFileNameWb, Map<String, Integer> regionsMap) {
         for (String customer : mapCustomerFileNameWb.keySet()) {
-            System.out.println("started calcCustomerFreight on : " + customer);
             //load customer price list
             final Workbook customerPriceListWb = loadWb(Constants.INPUT_DIR + "/" + Constants.CUSTOMER_PRICE_LISTS + "/" + customer + Constants.XLSX_FILE_ENDING);
-            calcCustomerFreight(mapCustomerFileNameWb.get(customer), customerPriceListWb, regionsMap);
+            calcCustomerFreight(customer, mapCustomerFileNameWb.get(customer), customerPriceListWb, regionsMap);// TODO check not null
         }
         System.out.println("******************************");
     }
@@ -326,19 +325,18 @@ public class UtilityMethods {
      * formula: CHARGE = [(customer price per region) X weight]  + [(fuel surcharge% * customer price per region)]
      * //TODO insurance value add with
      * //TODO fuel surecharge is dynamic - how to get externally every time
-     *
-     * @param workbook
-     * @param customerPriceListWb
-     * @param regionsMap
      */
-    public static void calcCustomerFreight(Workbook workbook, Workbook customerPriceListWb, Map<String, Integer> regionsMap) {
-        final Sheet sheet = workbook.getSheet(Constants.SHEET_NAME);
+    public static void calcCustomerFreight(String customer, Workbook wb, Workbook customerPriceListWb, Map<String, Integer> regionsMap) {
+        final Sheet sheet = wb.getSheet(Constants.SHEET_NAME);
         //init cells
         int weightCol = -1;
         int destinationCol = -1;
         int freightCol = -1;
+        int productsCol = -1;
 
         try {
+            System.out.println("Started calcCustomerFreight on : " + customer);
+
             //get Frieght cell value
             CellAddress cellFrieght = findCellByName(sheet, Constants.FREIGHT);
             if (cellFrieght == null) {
@@ -354,19 +352,23 @@ public class UtilityMethods {
             if (cellWeight == null) {
                 throw new IllegalArgumentException(Constants.WEIGHT_NOT_FOUND_ERROR);
             }
-            weightCol = findCellByName(sheet, Constants.WEIGHT_COL).getColumn();
+            weightCol = cellWeight.getColumn();
 
             //get Destination cell value
             CellAddress cellDes = findCellByName(sheet, Constants.DES_COL);
             if (cellDes == null) {
                 throw new IllegalArgumentException(Constants.DES_COL_NOT_FOUND_ERROR);
             }
-            destinationCol = findCellByName(sheet, Constants.DES_COL).getColumn();
+            destinationCol = cellDes.getColumn();
 
+            CellAddress cellProduct = findCellByName(sheet, Constants.PRODUCTS_COL);
+            if (cellDes == null) {
+                throw new IllegalArgumentException(Constants.DES_COL_NOT_FOUND_ERROR);
+            }
+            productsCol = cellProduct.getColumn();
 
             //TODO insurance col if exists
-            //TODO DDP
-            //TODO Rishomon if exists
+            //TODO Rishomon log
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -375,8 +377,8 @@ public class UtilityMethods {
         final double fuelScp = getFuelSurchargePercent();
         if (fuelScp < 0 || fuelScp > 1) {
             throw new IllegalArgumentException(Constants.FUEL_SURCHARGE_NOT_IN_RANGE);
-
         }
+
         DataFormatter dataFormatter = new DataFormatter();
         Row row;
         Cell cell;
@@ -385,10 +387,17 @@ public class UtilityMethods {
         int zone;
         double pricePerWeightAndZone;
         double totalPrice;
-        //iterate over all rows in customer workbook (each 1 row = 1 shipment)
+        //iterate over all rows in customer workbook ( 1 row = 1 shipment)
         for (int i = 1; i <= sheet.getLastRowNum(); i++) {
             //get current row
             row = sheet.getRow(i);
+
+            cell = row.getCell(productsCol);
+            if (cell.getStringCellValue() == Constants.DDP) {
+                System.out.println(Constants.PRODUCT_IS_DDP + " customer WB: " + customer + " row: " + row.getRowNum());
+                continue;   //DDP is disregarded, jump to next row
+            }
+
             //get weight value
             cell = row.getCell(weightCol);
             weight = Double.parseDouble(dataFormatter.formatCellValue(cell));
@@ -404,17 +413,18 @@ public class UtilityMethods {
             } else if (regionsMap.containsKey(country.toLowerCase())) {
                 zone = regionsMap.get(country.toLowerCase());
             } else {
+                System.out.println("Country not found: "+ country);
                 throw new IllegalArgumentException(Constants.COUNTRY_CODE_ERROR);
             }
 
             //calc price according to weight and zone
-            pricePerWeightAndZone = getCustomerPrice(customerPriceListWb, weight, zone); //TODO input sheet no need for WB
+            pricePerWeightAndZone = getCustomerPrice(customerPriceListWb.getSheet(Constants.SHEET_NAME), weight, zone);
             totalPrice = ((1 + fuelScp) * pricePerWeightAndZone);                    //fuelScp range:[0 - 1]
 
             //write updated price value to cell
             cell = row.getCell(freightCol);
             cell.setCellValue(totalPrice);
-            System.out.println("updated cell : " + cell.getAddress() + " with anew FRIEGHT value of: " + totalPrice);
+            System.out.println("Updated cell : " + cell.getAddress() + " with a new FRIEGHT value of: " + totalPrice);
         }
         System.out.println("******************************");
     }
@@ -424,56 +434,60 @@ public class UtilityMethods {
      * //find closest base weight and get price example: weight is 11.5 , base =11K  D5-d53
      * Zone Cells: E4-K4, values: [1-7], ZONE_OFFSET = 3
      */
-    public static double getCustomerPrice(Workbook custPriceListWb, double weight, int zone) {//TODO input sheet no need for WB
-        Sheet sheet = custPriceListWb.getSheet(Constants.SHEET_NAME);
+    public static double getCustomerPrice(Sheet priceListSheet, double weight, int zone) {
+        //rows and columns are Zero based
         Row row, nextRow;
         Cell cell;
         double baseWeight = 0;
         double basePrice = 0;
         double diff;
         double additionalPrice = 0;
-        final int zoneCol = zone + Constants.ZONE_OFFSET;
-        final int startRow = 4;
-        final int endRow = 52;
-        final int baseWeightCol = 3;
+        double nextStepPrice = 0;
+        final int zoneCol = zone; //+ Constants.ZONE_OFFSET;
+        //row range: 2-28
+        final int startRow = 2;
+        final int endRow = 28;
+        //weight column: 0
+        final int baseWeightCol = 0;
 
+        //TODO use (binary) search for sorted values and search more efficient by log(n)
         //iterate over rows
-        for (int i = startRow; i <= endRow; i++) {
-            row = sheet.getRow(i);
-            //nextRow = sheet.getRow(i + 1);
+
+        int i;
+        //go over rows in price list
+
+        for (i = startRow; i <= endRow; i++) {
+            row = priceListSheet.getRow(i);
             cell = row.getCell(baseWeightCol);
+            baseWeight = cell.getNumericCellValue();
+
+            if (weight == baseWeight) {
+                basePrice = row.getCell(zoneCol).getNumericCellValue();
+                System.out.println("Found exact weight: " + weight + " Price is: " + basePrice);
+                break;
+            }
+
             //not to overflow
-            if (i + 1 <= endRow) {
+            else if ((weight > baseWeight) && (i + 1 <= endRow)) {
+                baseWeight = cell.getNumericCellValue();
+                nextRow = priceListSheet.getRow(i + 1);
                 //find closest weight value
-                if ((weight >= cell.getNumericCellValue()) && (weight < sheet.getRow(i + 1).getCell(baseWeightCol).getNumericCellValue())) {
-                    baseWeight = cell.getNumericCellValue();
-                    basePrice = (baseWeight * (sheet.getRow(i).getCell(zoneCol).getNumericCellValue()));
+                if ((weight >= cell.getNumericCellValue()) && (weight < priceListSheet.getRow(i + 1).getCell(baseWeightCol).getNumericCellValue())) {
+                    basePrice = row.getCell(zoneCol).getNumericCellValue(); //price for base wight
+                    nextStepPrice = nextRow.getCell(zoneCol).getNumericCellValue(); //price for next step
+                    additionalPrice = (weight - baseWeight) * (basePrice + nextStepPrice) / 2; //additional price =  remaining weight * avg price
+                    basePrice = basePrice + additionalPrice;
+                    System.out.println("Found  weight: " + weight + " Price is: " + basePrice);
                     break;
                 }
             }
-            //if last row get last value
+            //no price in price list for current weight //TODO all edge cases?
             else {
-                baseWeight = cell.getNumericCellValue();
+                System.out.println("weight: " + weight + " not found in price list table ");
+                throw new IllegalArgumentException(Constants.WEIGHT_NOT_FOUND_ERROR);
             }
         }
-
-        //calc diff between table base weight and actual weight
-        diff = weight - baseWeight;
-
-        //add additional weight according to addition table, all cases: TODO get from file and not statically
-        if (weight >= 10 && weight < 20) {
-            additionalPrice = ((diff / Constants.WEIGHT_MULTIPLIER) * (sheet.getRow(57).getCell(zoneCol).getNumericCellValue()));
-        } else if (weight >= 20 && weight < 30) {
-            additionalPrice = ((diff / Constants.WEIGHT_MULTIPLIER) * (sheet.getRow(58).getCell(zoneCol).getNumericCellValue()));
-        } else if (weight >= 30 && weight < 70) {
-            additionalPrice = ((diff / Constants.WEIGHT_MULTIPLIER) * (sheet.getRow(59).getCell(zoneCol).getNumericCellValue()));
-        } else if (weight >= 70 && weight < 300) {
-            additionalPrice = ((diff / Constants.WEIGHT_MULTIPLIER) * (sheet.getRow(60).getCell(zoneCol).getNumericCellValue()));
-        } else if (weight >= 300) {
-            additionalPrice = ((diff / Constants.WEIGHT_MULTIPLIER) * (sheet.getRow(61).getCell(zoneCol).getNumericCellValue()));
-        }
-
-        return basePrice + additionalPrice;
+        return basePrice;
     }
 
     //returns fuel surcharge
@@ -804,7 +818,7 @@ public class UtilityMethods {
     }
 
     //creates(copies an example) a price list file per customer in the input workbook,
-    //example call: createPriceListFiles(new ArrayList<String>(customerNameToFileName.values()));
+    //example call:         UtilityMethods.createPriceListFiles(new ArrayList<String>(customerNameToFileName.values()));
     public static void createPriceListFiles(List<String> names) {
         //create files price list per customer
         File folder = new File("inputdir/customer price lists/");
