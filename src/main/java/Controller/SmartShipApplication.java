@@ -65,15 +65,23 @@ public class SmartShipApplication {
         //calculate shipment cost(freight) for customers
         UtilityMethods.calcFreightForAllCustomers(mapCustomerFileNameWb, countryToRegionCodeMap);
 
-        // remove un-needed columns from excel files
-        //UtilityMethods.cleanColumnsFromCustomerWbFiles(mapCustomerFileNameWb);
+        //insert img        // add Smartship logo
+        //UtilityMethods.insertLogo(mapCustomerFileNameWb);
 
-        // add Smartship logo
+        //page setup
+        UtilityMethods.pagePrintSetup(mapCustomerFileNameWb);
 
         // convert to PDF
 
         //write files do disk
         UtilityMethods.saveAndCloseWbFiles(mapCustomerFileNameWb);
+
+        //load files and delete cols save files
+        AsposeCellsUtilities.deleteBlankAndAutoFitColumns(mapCustomerFileNameWb);
+
+        //load files remove new sheet save and close wb files
+        //UtilityMethods.deleteUnusedSheetsInWb(mapCustomerFileNameWb);
+
 
         //export log/error file
 

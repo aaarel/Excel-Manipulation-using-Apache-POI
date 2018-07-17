@@ -52,5 +52,13 @@
         <SOURCES />
       </library>
     </orderEntry>
+    <orderEntry type="library" name="Maven: com.itextpdf:itextpdf:5.5.13" level="project" />
+    <orderEntry type="library" name="Maven: com.itextpdf:itext-pdfa:5.5.13" level="project" />
+    <orderEntry type="library" name="Maven: com.itextpdf:itext-xtra:5.5.13" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.commons:commons-imaging:1.0-SNAPSHOT" level="project" />
+    <orderEntry type="library" name="Maven: com.itextpdf.tool:xmlworker:5.5.13" level="project" />
+    <orderEntry type="library" name="Maven: com.aspose:aspose-cells:18.7" level="project" />
+    <orderEntry type="library" name="Maven: com.aspose:aspose-cells:javadoc:18.7" level="project" />
+    <orderEntry type="library" name="Maven: org.bouncycastle:bcprov-jdk16:1.46" level="project" />
   </component>
 </module>
