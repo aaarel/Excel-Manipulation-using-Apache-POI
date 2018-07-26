@@ -77,11 +77,10 @@ public class SmartShipApplication {
         UtilityMethods.saveAndCloseWbFiles(mapCustomerFileNameWb);
 
         //load files and delete cols save files
-        AsposeCellsUtilities.deleteBlankAndAutoFitColumns(mapCustomerFileNameWb);
+        //AsposeCellsUtilities.deleteBlankAndAutoFitColumns(mapCustomerFileNameWb);
 
         //load files remove new sheet save and close wb files
         //UtilityMethods.deleteUnusedSheetsInWb(mapCustomerFileNameWb);
-
 
         //export log/error file
 
