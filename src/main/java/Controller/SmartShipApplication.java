@@ -14,6 +14,7 @@ import java.util.Map;
 
 public class SmartShipApplication {
 
+    //change main name to else
     public static void main(String[] args) {
 
         //copy invoice file not to work on original file
@@ -87,5 +88,9 @@ public class SmartShipApplication {
         System.out.println(" Finished Main ");
 
 
+    }
+
+    public static void test() {
+        System.out.println("test ran");
     }
 }

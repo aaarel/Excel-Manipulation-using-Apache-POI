@@ -21,6 +21,8 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.stage.Stage;
 
+//TODO combine application window and
+
 public class ApplicationWindow extends Application {
 
 	//JavaFX application still use the main method.
@@ -89,7 +91,8 @@ public class ApplicationWindow extends Application {
 		Button runProgBut = new Button("Run Program");
 		runProgBut.setOnAction(new EventHandler<ActionEvent>() {
 			public void handle(ActionEvent actionEvent) {
-				new SmartShipApplication().main(new String[]{"ariel", "peretz"});
+				//new SmartShipApplication().main(new String[]{"ariel", "peretz"});
+				System.out.println("Program ran");
 			}
 		});
 
