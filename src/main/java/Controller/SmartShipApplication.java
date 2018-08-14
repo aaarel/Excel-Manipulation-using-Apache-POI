@@ -17,6 +17,11 @@ public class SmartShipApplication {
     //change main name to else
     public static void main(String[] args) {
 
+        //TODO remove after tests
+        System.out.println("start here, fuel: " + args[0]);
+
+        /*
+
         //copy invoice file not to work on original file
         UtilityMethods.copyFile(Constants.INVOICE_FILE_SOURCE_PATH, Constants.INVOICE_FILE_DES_PATH);
 
@@ -85,12 +90,10 @@ public class SmartShipApplication {
 
         //export log/error file
 
+        */
+
         System.out.println(" Finished Main ");
 
-
     }
 
-    public static void test() {
-        System.out.println("test ran");
-    }
 }
