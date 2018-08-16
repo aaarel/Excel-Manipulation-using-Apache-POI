@@ -16,10 +16,11 @@ import java.io.IOException;
  * This is the main View for the application
  */
 
-
+//a Jframe class with specific properties to contain the Frames for the gui
 public class BackgroundImageJFrame extends JFrame {
     private MyPanel contentPane;
 
+    //main method of execution (entry point for gui App)
     public static void main(String[] args) {
         Runnable runnable = new Runnable() {
             @Override
@@ -30,6 +31,7 @@ public class BackgroundImageJFrame extends JFrame {
         EventQueue.invokeLater(runnable);
     }
 
+    //method to paint the gui to the display using Jframe
     private void displayGui() {
         JFrame frame = new JFrame("Main Program Window");
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -55,12 +57,13 @@ public class BackgroundImageJFrame extends JFrame {
         frame.add(button);
     }
 
+    //a panel of an image with specific properties to be used in a Jframe
     private class MyPanel extends JPanel {
         private BufferedImage image;
 
         public MyPanel() {
             try {
-                image = ImageIO.read(BackgroundImageJFrame.class.getResource("../Smartship intro WEB_11.png"));
+                image = ImageIO.read(BackgroundImageJFrame.class.getResource("/Smartship intro WEB_11.png")); //getResource("../Smartship intro WEB_11.png")
             } catch (IOException ioe) {
                 ioe.printStackTrace();
             }

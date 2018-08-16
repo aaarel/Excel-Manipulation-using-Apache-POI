@@ -20,7 +20,7 @@
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
-      <module name="SmartShip CustomerInvoiceSystem" target="6" />
+      <module name="SmartShip CustomerInvoiceSystem" target="1.8" />
     </bytecodeTargetLevel>
   </component>
 </project>
