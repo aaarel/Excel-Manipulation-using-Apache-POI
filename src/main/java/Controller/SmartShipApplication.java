@@ -24,16 +24,15 @@ public class SmartShipApplication {
      *
      */
     public static void main(String[] args) {
-        //changing standard output to write logs into a log file instead of console
+
         try {
             //value of fuel surcharge
             final Double fuelSurcharge = Double.parseDouble(args[0]);
 
+            //changing standard output to write logs into a log file instead of console
             FileOutputStream logFile = new FileOutputStream(Constants.OUT_LOG_FILE);
             PrintStream printStream = new PrintStream(logFile);
             System.setOut(printStream);
-            //System.out.println("start here, fuel: " + args[0]);
-            System.out.println("start here, fuel: " + fuelSurcharge);
 
             ///*
 

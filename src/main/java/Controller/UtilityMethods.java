@@ -31,15 +31,13 @@ public class UtilityMethods {
                 sheet.getPrintSetup().setLandscape(true);
                 sheet.getPrintSetup().setFitHeight((short) 1);
                 sheet.getPrintSetup().setFitWidth((short) 1);
-                //wb.write(fileOutCustomer);
-                System.out.println(" Wrote workbook file to disk: " + customerFileName);
-                //fileOutCustomer.close();
-                System.out.println(" Closed file: " + customerFileName + ".xls");
+                //System.out.println(" Wrote workbook file to disk: " + customerFileName);
+                //System.out.println(" Closed file: " + customerFileName + ".xls");
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
-        System.out.println("******************************");
+        //System.out.println("******************************");
     }
 
 
@@ -59,7 +57,7 @@ public class UtilityMethods {
                     val.equals(Constants.CUSTOMER_COLUMN_NAME) || val.equals(Constants.REF_NUM_COLUMN_NAME) || val.equals(Constants.CNSGNEE_COL) ||
                     val.equals(Constants.WEIGHT_COL) || val.equals(Constants.FREIGHT_NEW_FORMAT_SHP) || val.equals(Constants.FUEL_NEW_FORMAT)) {
                 approvedColumnList.add(new Integer(cell.getColumnIndex()));
-                System.out.println("added approved column: " + cell.getColumnIndex() + " Cell: " + val);
+                //System.out.println("added approved column: " + cell.getColumnIndex() + " Cell: " + val);
             }
 
         }
@@ -149,17 +147,17 @@ public class UtilityMethods {
                                     break;
                             }
                         }
-                        System.out.println("copied Row with index: " + customerRowIndex);
+                        //System.out.println("copied Row with index: " + customerRowIndex);
                     }
                 } else {
-                    System.out.println("Skipped customerName:  " + customerName);
+                    //System.out.println("Skipped customerName:  " + customerName);
                     continue;
                 }
             }
-            System.out.println("Finished sheet " + originalSheet.getSheetName());
+            //System.out.println("Finished sheet " + originalSheet.getSheetName());
         }
-        System.out.println("Finished iterating workbook ");
-        System.out.println("******************************");
+        //System.out.println("Finished iterating workbook ");
+        //System.out.println("******************************");
 
     }
 
@@ -172,14 +170,14 @@ public class UtilityMethods {
                 FileOutputStream fileOutCustomer = new FileOutputStream("outputdir/customers/" + customerFileName + ".xls");
                 wb = mapCustomerFileNameToWb.get(customerFileName);
                 wb.write(fileOutCustomer);
-                System.out.println(" Wrote workbook file to disk: " + customerFileName);
+                //System.out.println(" Wrote workbook file to disk: " + customerFileName);
                 fileOutCustomer.close();
-                System.out.println(" Closed file: " + customerFileName + ".xls");
+                //System.out.println(" Closed file: " + customerFileName + ".xls");
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
-        System.out.println("******************************");
+        //System.out.println("******************************");
     }
 
     //saves and closes open WB files
@@ -242,9 +240,9 @@ public class UtilityMethods {
         final Map<String, Workbook> mapCustomerFileNameWb = new HashMap<String, Workbook>();
         for (String customerFileName : customerNameToFileName.values()) {
             mapCustomerFileNameWb.put(customerFileName, createCustomerWb(firstRow));
-            System.out.println("created customer wb with name: " + customerFileName);
+            //System.out.println("created customer wb with name: " + customerFileName);
         }
-        System.out.println("******************************");
+        //System.out.println("******************************");
         return mapCustomerFileNameWb;
     }
 
@@ -359,7 +357,7 @@ public class UtilityMethods {
                     //validates and cleans cell value if, customer ID is allowd : [0-9]
                     cellVal = dataFormatter.formatCellValue(cell);
                     if (!cellVal.equals(cellVal.replaceAll(Constants.REGEX_ONLY_NUMBERS, Constants.BLANK))) {
-                        System.out.println("old Cell Value: " + cellVal + " changed to new cell value: " + cellVal.replaceAll(Constants.REGEX_ONLY_NUMBERS, Constants.BLANK));
+                        //System.out.println("old Cell Value: " + cellVal + " changed to new cell value: " + cellVal.replaceAll(Constants.REGEX_ONLY_NUMBERS, Constants.BLANK));
                         cell.setCellValue(cellVal.replaceAll(Constants.REGEX_ONLY_NUMBERS, Constants.BLANK)); //TODO correct place to change cell values ?
                     }
                     customerIdsSet.add(dataFormatter.formatCellValue(cell));
@@ -400,7 +398,7 @@ public class UtilityMethods {
                         String customerFileName = customerNameAsInSheet.replaceAll(Constants.REGEX_FILTER_UNWANTED_CHARS, " ").toUpperCase();
                         if (!customerNameToFile.containsKey(customerNameAsInSheet)) {
                             customerNameToFile.put(customerNameAsInSheet, customerFileName);
-                            System.out.println("Added customer: " + customerNameAsInSheet + " with file name: " + customerFileName + ", Product is: " + product);
+                            //System.out.println("Added customer: " + customerNameAsInSheet + " with file name: " + customerFileName + ", Product is: " + product);
                         }
                         break;
                     }
@@ -417,7 +415,7 @@ public class UtilityMethods {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        System.out.println("copied file: " + srcPath + " successfully");
+        //System.out.println("copied file: " + srcPath + " successfully");
     }
 
     //loads workbook
@@ -429,9 +427,9 @@ public class UtilityMethods {
             //Get the Workbook instance for XLS file
             Workbook workbook = WorkbookFactory.create(fIP);
             if (file.isFile() && file.exists()) {
-                System.out.println(path + " Open wb successfully ");
+                //System.out.println(path + " Open wb successfully ");
             } else {
-                System.out.println(" Error Opening " + path);
+                //System.out.println(" Error Opening " + path);
             }
             return workbook;
         } catch (Exception e) {
@@ -463,7 +461,7 @@ public class UtilityMethods {
             final Workbook customerPriceListWb = loadWb(Constants.INPUT_DIR + "/" + Constants.CUSTOMER_PRICE_LISTS + "/" + customer + Constants.XLSX_FILE_ENDING);
             calcCustomerFreight(customer, mapCustomerFileNameWb.get(customer), customerPriceListWb, regionsMap, fuelSurcharge);// TODO check not null
         }
-        System.out.println("******************************");
+        //System.out.println("******************************");
     }
 
     /**
@@ -481,7 +479,7 @@ public class UtilityMethods {
         Cell cell;
         String country;
 
-        System.out.println("Started calcCustomerFreight for : " + customer);
+        //System.out.println("Started calcCustomerFreight for : " + customer);
 
         //get cell values
         CellAddress cellFrieght = findCellByName(sheet, Constants.FREIGHT);
@@ -533,7 +531,7 @@ public class UtilityMethods {
                 } else if (regionsMap.containsKey(country.toLowerCase())) {
                     zone = regionsMap.get(country.toLowerCase());
                 } else {
-                    System.out.println("Country not found: " + country);
+                    //System.out.println("Country not found: " + country);
                     throw new IllegalArgumentException(Constants.COUNTRY_CODE_ERROR);
                 }
 
@@ -544,14 +542,14 @@ public class UtilityMethods {
                 //write updated price value to cell
                 cell = row.getCell(freightCol);
                 cell.setCellValue(totalPrice);
-                System.out.println("Updated cell : " + cell.getAddress() + " with a new FRIEGHT value of: " + totalPrice);
+                //System.out.println("Updated cell : " + cell.getAddress() + " with a new FRIEGHT value of: " + totalPrice);
             }
             //any other type has to be done Manually
             else {
-                System.out.println(" Customer WB: " + customer + " Row: " + row.getRowNum() + "Product is: " + cell.getStringCellValue() + " To ne done Manually ");
+                System.out.println(" Customer WB: " + customer + " Row: " + row.getRowNum() + "Product is: " + cell.getStringCellValue() + " To be done Manually ");
                 continue;
             }
-            System.out.println("******************************");
+            //System.out.println("******************************");
         }
     }
 
@@ -574,7 +572,7 @@ public class UtilityMethods {
 
             if (weight == baseWeight) {
                 price = row.getCell(zone).getNumericCellValue();
-                System.out.println("Found exact weight: " + weight + " Price is: " + price);
+                //System.out.println("Found exact weight: " + weight + " Price is: " + price);
                 break;
             }
             //avoiding overflow of table
@@ -591,7 +589,7 @@ public class UtilityMethods {
                     remWeight = weight - baseWeight;
                     additionalPrice = diffPrice / diffWeight * remWeight;
                     price = price + additionalPrice;
-                    System.out.println("Found  price for weight: " + weight + ", Price is: " + price);
+                    //System.out.println("Found  price for weight: " + weight + ", Price is: " + price);
                     break;
                 }
             } else {
@@ -599,20 +597,10 @@ public class UtilityMethods {
             }
         }
         if (price == 0) {//no price in price list
-            System.out.println("weight: " + weight + " not found in price list table ");
+            //System.out.println("weight: " + weight + " not found in price list table ");
             throw new IllegalArgumentException(Constants.WEIGHT_NOT_FOUND_ERROR);
         }
         return price;
-    }
-
-    //returns fuel surcharge
-    public static double getFuelSurchargePercent() {
-        //TODO
-        //get getFuelSurchargePercent from ext field
-        //if (fuelScp < 0 || fuelScp > 1) {
-        //throw new IllegalArgumentException(Constants.FUEL_SURCHARGE_NOT_IN_RANGE);
-        //}
-        return 0;
     }
 
     //TODO - DEPRECATED METHODS
