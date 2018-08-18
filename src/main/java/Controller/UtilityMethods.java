@@ -24,16 +24,16 @@ public class UtilityMethods {
         try {
             //load files
             for (String customerFileName : mapCustomerFileNameToWb.keySet()) {
-                FileOutputStream fileOutCustomer = new FileOutputStream("outputdir/customers/" + customerFileName + ".xls");
+                //FileOutputStream fileOutCustomer = new FileOutputStream(Constants.OUTPUT_DIR + "/customers/" + customerFileName + ".xls");
                 wb = mapCustomerFileNameToWb.get(customerFileName);
                 sheet = wb.getSheet(Constants.SHEET_NAME); //has a problem here the new sheet has no index
                 sheet.setFitToPage(true);
                 sheet.getPrintSetup().setLandscape(true);
                 sheet.getPrintSetup().setFitHeight((short) 1);
                 sheet.getPrintSetup().setFitWidth((short) 1);
-                wb.write(fileOutCustomer);
+                //wb.write(fileOutCustomer);
                 System.out.println(" Wrote workbook file to disk: " + customerFileName);
-                fileOutCustomer.close();
+                //fileOutCustomer.close();
                 System.out.println(" Closed file: " + customerFileName + ".xls");
             }
         } catch (Exception e) {
@@ -457,11 +457,11 @@ public class UtilityMethods {
     }
 
     //calculate shipment cost(freight) for each customer based on his personal price list wb
-    public static void calcFreightForAllCustomers(Map<String, Workbook> mapCustomerFileNameWb, Map<String, Integer> regionsMap) {
+    public static void calcFreightForAllCustomers(Map<String, Workbook> mapCustomerFileNameWb, Map<String, Integer> regionsMap, Double fuelSurcharge) {
         for (String customer : mapCustomerFileNameWb.keySet()) {
             //load customer price list
             final Workbook customerPriceListWb = loadWb(Constants.INPUT_DIR + "/" + Constants.CUSTOMER_PRICE_LISTS + "/" + customer + Constants.XLSX_FILE_ENDING);
-            calcCustomerFreight(customer, mapCustomerFileNameWb.get(customer), customerPriceListWb, regionsMap);// TODO check not null
+            calcCustomerFreight(customer, mapCustomerFileNameWb.get(customer), customerPriceListWb, regionsMap, fuelSurcharge);// TODO check not null
         }
         System.out.println("******************************");
     }
@@ -471,12 +471,11 @@ public class UtilityMethods {
      * Calculates shipment cost(freight) for a customer based on his personal price list wb
      * Formula: CHARGE = [(customer price per region) X weight]  + [(fuel surcharge% * customer price per region)]
      */
-    public static void calcCustomerFreight(String customer, Workbook wb, Workbook customerPriceListWb, Map<String, Integer> regionsMap) {
+    public static void calcCustomerFreight(String customer, Workbook wb, Workbook customerPriceListWb, Map<String, Integer> regionsMap, Double fuelSurcharge) {
         final Sheet sheet = wb.getSheet(Constants.SHEET_NAME);
         //init cells
         int weightCol, destinationCol, freightCol, productsCol, zone;
         double weight, pricePerWeightAndZone, totalPrice;
-        final double fuelScp = getFuelSurchargePercent();
         DataFormatter dataFormatter = new DataFormatter();
         Row row;
         Cell cell;
@@ -540,7 +539,7 @@ public class UtilityMethods {
 
                 //calc price according to weight and zone
                 pricePerWeightAndZone = getCustomerPrice(customerPriceListWb.getSheet(Constants.SHEET_NAME), weight, zone);
-                totalPrice = ((1 + fuelScp) * pricePerWeightAndZone);                                   //fuelScp range:[0 - 1]
+                totalPrice = ((1 + fuelSurcharge) * pricePerWeightAndZone);                                   //fuelScp range:[0 - 1]
 
                 //write updated price value to cell
                 cell = row.getCell(freightCol);

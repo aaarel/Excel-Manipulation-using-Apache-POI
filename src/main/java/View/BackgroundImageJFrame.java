@@ -36,22 +36,24 @@ public class BackgroundImageJFrame extends JFrame {
         JFrame frame = new JFrame("Main Program Window");
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
-        final JTextField jTextField = new JTextField("Enter Fuel surcharge", 14);
+        final JTextField jTextField = new JTextField("הכנס היטל דלק כאן", 14);
+
         final JButton button = new JButton("Click here to start");
         button.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 button.setText("Running...");
-                String fuel = jTextField.getText();
+                final String fuel = jTextField.getText();
+
                 jTextField.setText("");
-                new SmartShipApplication().main(new String[]{fuel});
+                new SmartShipApplication().main(new String[]{fuel}); // TODO input validation
             }
         });
         contentPane = new MyPanel();
         frame.setContentPane(contentPane);
         frame.setLocationByPlatform(true);
         frame.setVisible(true);
-        frame.setTitle("Smartship Customer Invoice System");
+        frame.setTitle("(Smartship) סמארטשיפ מערכת ניהול חשבוניות");
         frame.pack();
         frame.add(jTextField);
         frame.add(button);

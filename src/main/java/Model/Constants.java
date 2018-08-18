@@ -13,6 +13,7 @@ public class Constants {
     public static final String REGION_TO_COUNTRY_FILE = Constants.INPUT_DIR + "/Region to country map/Regions to Country Mapping.xls";
     public static final String OUTPUT_DIR = "outputdir";
     public static final String INVOICE_FILE_DES_PATH = Constants.OUTPUT_DIR + "/invoiceFile workbook" + System.currentTimeMillis() + ".xls";
+    public static final String OUT_LOG_FILE = Constants.OUTPUT_DIR + "/log files/log " + System.currentTimeMillis() + ".txt";
     public static final String CUSTOMER_PRICE_LISTS = "customer price lists";
 
     //regular expressions
