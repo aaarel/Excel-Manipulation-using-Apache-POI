@@ -14,7 +14,7 @@ public class Constants {
     public static final String OUTPUT_DIR = "outputdir";
     public static final String INVOICE_FILE_DES_PATH = Constants.OUTPUT_DIR + "/invoiceFile workbook" + System.currentTimeMillis() + ".xls";
     public static final String OUT_LOG_FILE = Constants.OUTPUT_DIR + "/log files/log " + System.currentTimeMillis() + ".txt";
-    public static final String EXCEPTION_LOG_FILE = "exceptions " + System.currentTimeMillis() + ".txt";
+    public static final String EXCEPTION_LOG_FILE = "exceptions and logs " + System.currentTimeMillis() + ".txt";
     public static final String CUSTOMER_PRICE_LISTS = "customer price lists";
 
     //regular expressions

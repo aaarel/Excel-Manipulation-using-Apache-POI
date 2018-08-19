@@ -57,7 +57,7 @@ public class BackgroundImageJFrame extends JFrame {
                 if (success) {
                     button.setText("בוצע");
                 } else {
-                    button.setText("קרתה תקלה - בדוק קובץ שגיאות (exceptions)");
+                    button.setText("קרתה תקלה - בדוק קובץ שגיאות (exceptions and logs)");
                 }
             }
         });
