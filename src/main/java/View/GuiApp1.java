@@ -88,7 +88,7 @@ public class GuiApp1 {
         runProgramBut.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 String[] vegOptions = {"Asparagus", "Beans", "Broccoli", "Cabbage"};
-                new TestApp1().main(vegOptions);
+                //new GuiApp1().main(vegOptions);
                 listPanel.setVisible(!listPanel.isVisible());
                 comboPanel.setVisible(!comboPanel.isVisible());
             }
@@ -111,15 +111,6 @@ public class GuiApp1 {
     public static void main(String[] args) {
 
         new GuiApp1();
-    }
-
-    class TestApp1 {
-        public void main(String[] args) {
-            System.out.println("app Controller.TestApp1 running");
-            for (String str : args) {
-                System.out.println("Str: " + str);
-            }
-        }
     }
 
 }

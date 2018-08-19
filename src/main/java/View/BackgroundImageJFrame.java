@@ -1,6 +1,5 @@
 package View;
 
-
 import Controller.SmartShipApplication;
 
 import javax.imageio.ImageIO;
@@ -10,6 +9,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by Ariel Peretz for Smartship
@@ -33,8 +33,9 @@ public class BackgroundImageJFrame extends JFrame {
 
     //method to paint the gui to the display using Jframe
     private void displayGui() {
-        JFrame frame = new JFrame("Main Program Window");
+        final JFrame frame = new JFrame("Main Program Window");
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        frame.setLayout(new FlowLayout());
 
         final JTextField jTextField = new JTextField("הכנס היטל דלק כאן", 14);
 
@@ -42,11 +43,22 @@ public class BackgroundImageJFrame extends JFrame {
         button.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                button.setText("Running...");
                 final String fuel = jTextField.getText();
 
                 jTextField.setText("");
-                new SmartShipApplication().main(new String[]{fuel}); // TODO input validation
+                button.setText("פועל..."); //TODO why doesn't this show up ?
+                frame.repaint();
+                boolean success = new SmartShipApplication().applicationFlow(fuel);
+                try {
+                    TimeUnit.SECONDS.sleep(5);
+                } catch (InterruptedException interruptedException) {
+                    interruptedException.printStackTrace();
+                }
+                if (success) {
+                    button.setText("בוצע");
+                } else {
+                    button.setText("קרתה תקלה - בדוק קובץ שגיאות (exceptions)");
+                }
             }
         });
         contentPane = new MyPanel();
@@ -65,7 +77,7 @@ public class BackgroundImageJFrame extends JFrame {
 
         public MyPanel() {
             try {
-                image = ImageIO.read(BackgroundImageJFrame.class.getResource("/Smartship intro WEB_11.png")); //getResource("../Smartship intro WEB_11.png")
+                image = ImageIO.read(BackgroundImageJFrame.class.getResource("/Smartship intro WEB_11.png"));
             } catch (IOException ioe) {
                 ioe.printStackTrace();
             }

@@ -9,13 +9,17 @@ import org.apache.poi.ss.util.CellAddress;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.InputStream;
+import java.io.*;
 import java.util.*;
 
 public class UtilityMethods {
+
+    private static PrintStream printStream;
+
+    //c'tor
+    public UtilityMethods(PrintStream printStream) {
+        this.printStream = printStream;
+    }
 
     //sets page print setup and closes open WB files
     public static void pagePrintSetup(Map<String, Workbook> mapCustomerFileNameToWb) {
@@ -35,7 +39,7 @@ public class UtilityMethods {
                 //System.out.println(" Closed file: " + customerFileName + ".xls");
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            e.printStackTrace(printStream);
         }
         //System.out.println("******************************");
     }
@@ -175,7 +179,7 @@ public class UtilityMethods {
                 //System.out.println(" Closed file: " + customerFileName + ".xls");
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            e.printStackTrace(printStream);
         }
         //System.out.println("******************************");
     }
@@ -195,7 +199,7 @@ public class UtilityMethods {
                 System.out.println(" Closed file: " + customerFileName + ".xls");
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            e.printStackTrace(printStream);
         }
         System.out.println("******************************");
     }
@@ -229,7 +233,7 @@ public class UtilityMethods {
                 System.out.println("Added logo to: " + customerFileName);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            e.printStackTrace(printStream);
         }
         System.out.println("******************************");
     }
@@ -412,8 +416,8 @@ public class UtilityMethods {
     public static void copyFile(String srcPath, String desPath) {
         try {
             FileUtils.copyFile(new File(srcPath), new File(desPath));
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace(printStream);
         }
         //System.out.println("copied file: " + srcPath + " successfully");
     }
@@ -433,7 +437,7 @@ public class UtilityMethods {
             }
             return workbook;
         } catch (Exception e) {
-            e.printStackTrace();
+            e.printStackTrace(printStream);
         }
         throw new IllegalStateException();
     }
@@ -691,7 +695,7 @@ public class UtilityMethods {
                 } //end of cell iterator
 
             } catch (Exception e) {
-                e.printStackTrace();
+                e.printStackTrace(printStream);
             }
 
 
