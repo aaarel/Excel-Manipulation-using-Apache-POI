@@ -425,7 +425,7 @@ public class UtilityMethods {
     //loads workbook
     public static Workbook loadWb(String path) {
         //read file contents
-        File file = new File(path);
+        final File file = new File(path);
         try {
             FileInputStream fIP = new FileInputStream(file);
             //Get the Workbook instance for XLS file
@@ -463,9 +463,12 @@ public class UtilityMethods {
         for (String customer : mapCustomerFileNameWb.keySet()) {
             //load customer price list
             final Workbook customerPriceListWb = loadWb(Constants.INPUT_DIR + "/" + Constants.CUSTOMER_PRICE_LISTS + "/" + customer + Constants.XLSX_FILE_ENDING);
-            calcCustomerFreight(customer, mapCustomerFileNameWb.get(customer), customerPriceListWb, regionsMap, fuelSurcharge);// TODO check not null
+            if (customerPriceListWb == null) {
+                System.out.println(" customer price list file not found for: " + customer + " needs to be done Manually");
+                continue;
+            }
+            calcCustomerFreight(customer, mapCustomerFileNameWb.get(customer), customerPriceListWb, regionsMap, fuelSurcharge);
         }
-        //System.out.println("******************************");
     }
 
     /**

@@ -21,9 +21,10 @@ public class SmartShipApplication {
      * Main Application flow, running all activities one by one
      *
      * @param fuel
-     * @return boolean when all activities finish
+     * @return boolean that represents if this function completed successfully
      */
     public static boolean applicationFlow(String fuel) {
+        //represents if this function completed successfully (true) or not (false)
         boolean success = true;
 
         try {
