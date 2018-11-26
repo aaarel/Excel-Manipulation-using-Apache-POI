@@ -58,5 +58,6 @@ public class Constants {
     //DHL invoice file
     public static int FIRST_ROW_NUM = 0;
     public static int FIRST_SHEET_NUM = 0;
+    public static int FIRST_ROW_NUM_PRICE_LIST = 0;
 
 }

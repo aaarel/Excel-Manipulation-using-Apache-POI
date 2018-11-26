@@ -581,50 +581,123 @@ public class UtilityMethods {
         }
     }
 
+//    /**
+//     * gets the price per zone for a given customer
+//     * //find closest  weight and get price example: weight is 11.5 , base =11K
+//     */
+//    public static double getCustomerPrice(Sheet priceListSheet, double weight, int zone) {
+//        //rows and columns are Zero based
+//        Row row, nextRow;
+//        Cell cell;
+//        double baseWeight, nextStepWeight, additionalPrice, nextStepPrice, remWeight, diffPrice, diffWeight, price = 0;
+//        final int startRow = Constants.FIRST_ROW_NUM_PRICE_LIST, endRow = priceListSheet.getLastRowNum(), baseWeightCol = 0;
+//        try {
+//            //go over rows in price list from end to start
+//            for (int i = endRow; i >= startRow; i--) {
+//                row = priceListSheet.getRow(i);
+//                cell = row.getCell(baseWeightCol);
+//                baseWeight = cell.getNumericCellValue();
+//
+//                if (weight == baseWeight) {
+//                    price = row.getCell(zone).getNumericCellValue();
+//                    break;
+//                }
+//                //case: weight is bigger than in max weight table, avoiding overflow by i+1<=endRow
+//                else if ((weight > baseWeight) && (i + 1 <= endRow)) {
+//                    baseWeight = cell.getNumericCellValue();
+//                    //getting next row (bigger weight value)
+//                    nextRow = priceListSheet.getRow(i + 1);
+//                    nextStepWeight = nextRow.getCell(baseWeightCol).getNumericCellValue();
+//
+//                    //find closest weight value
+//                    if ((weight >= baseWeight) && (weight < nextStepWeight)) {
+//                        price = row.getCell(zone).getNumericCellValue(); //price for base wight
+//                        nextStepPrice = nextRow.getCell(zone).getNumericCellValue(); //price for next step
+//                        diffWeight = nextStepWeight - baseWeight;
+//                        diffPrice = nextStepPrice - price;
+//                        remWeight = weight - baseWeight;
+//                        additionalPrice = diffPrice / diffWeight * remWeight;
+//                        price = price + additionalPrice;
+//                        //System.out.println("Found  price for weight: " + weight + ", Price is: " + price);
+//                        break;
+//                    }
+//                } else {
+//                    continue;
+//                }
+//            }
+//            if (price == 0) {//no price in price list
+//                //System.out.println("weight: " + weight + " not found in price list table ");
+//                throw new IllegalArgumentException(Constants.WEIGHT_NOT_FOUND_ERROR);
+//            }
+//        } catch (Exception e) {
+//            e.printStackTrace(printStream);
+//            throw e;
+//        }
+//        return price;
+//    }
+
     /**
-     * gets the price per zone for a given customer
-     * //find closest  weight and get price example: weight is 11.5 , base =11K
+     * calculates and returns the customer price per shipment according to the parameters (weight, zone, price list)
+     * for example
      */
     public static double getCustomerPrice(Sheet priceListSheet, double weight, int zone) {
         //rows and columns are Zero based
-        final DataFormatter dataFormatter = new DataFormatter();
         Row row, nextRow;
         Cell cell;
-        double baseWeight, nextStepWeight, additionalPrice, nextStepPrice, remWeight, diffPrice, diffWeight, price = 0;
-        final int startRow = 2, endRow = priceListSheet.getLastRowNum(), baseWeightCol = 0; //TODO movce startRow to consts=2
+        double rowWeight, nextStepWeight, additionalPrice, nextStepPrice, remWeight, diffPrice, diffWeight, price = 0;
+        final int startRow = Constants.FIRST_ROW_NUM_PRICE_LIST, endRow = priceListSheet.getLastRowNum(), baseWeightCol = 0;
+        int i = endRow;
         try {
+            //TODO impl better search method here? Bin search?
+
             //go over rows in price list from end to start
-            for (int i = endRow; i >= startRow; i--) { //TODO easier in while loop? more clear perhaps
+            while (i >= startRow) {
+                //get row data
                 row = priceListSheet.getRow(i);
                 cell = row.getCell(baseWeightCol);
-                baseWeight = cell.getNumericCellValue();
+                rowWeight = cell.getNumericCellValue();
 
-                //TODO impl better search method here? Bin search?
-                if (weight == baseWeight) {
+                //weight bigger than max weight in price list
+                if (weight > rowWeight) {
+                    //calc max weight
+                    price = row.getCell(zone).getNumericCellValue();
+                    diffWeight = weight - rowWeight;
+                    additionalPrice = diffWeight * price;
+                    price = price + additionalPrice;
+                    break;
+                }
+
+                //weight equals to row current weight
+                if (weight == rowWeight) {
                     price = row.getCell(zone).getNumericCellValue();
                     break;
                 }
-                //case: weight is bigger than in max weight table, avoiding overflow by i+1<=endRow
-                else if ((weight > baseWeight) && (i + 1 <= endRow)) {
-                    baseWeight = cell.getNumericCellValue();
-                    //getting next row (bigger weight value)
-                    nextRow = priceListSheet.getRow(i + 1);
+
+                //not to under flow
+                if (i - 1 >= startRow) {
+                    //get next row data
+                    nextRow = priceListSheet.getRow(i - 1);
                     nextStepWeight = nextRow.getCell(baseWeightCol).getNumericCellValue();
 
-                    //find closest weight value
-                    if ((weight >= baseWeight) && (weight < nextStepWeight)) {
-                        price = row.getCell(zone).getNumericCellValue(); //price for base wight
+                    //weight smaller than current and next row weight, jump to next row
+                    if (weight < rowWeight && weight <= nextStepWeight) {
+                        i--;
+                        continue;
+                    }
+
+                    //weight is in between current and next row weight
+                    if (weight < rowWeight && weight > nextStepWeight) {
+                        //calc base price
+                        price = row.getCell(zone).getNumericCellValue();
+                        //calc price per kg for "in-between" row
                         nextStepPrice = nextRow.getCell(zone).getNumericCellValue(); //price for next step
-                        diffWeight = nextStepWeight - baseWeight;
-                        diffPrice = nextStepPrice - price;
-                        remWeight = weight - baseWeight;
+                        diffWeight = rowWeight - nextStepWeight;
+                        diffPrice = price - nextStepPrice;
+                        remWeight = weight - rowWeight;
                         additionalPrice = diffPrice / diffWeight * remWeight;
                         price = price + additionalPrice;
-                        //System.out.println("Found  price for weight: " + weight + ", Price is: " + price);
                         break;
                     }
-                } else {
-                    continue;
                 }
             }
             if (price == 0) {//no price in price list
@@ -637,6 +710,7 @@ public class UtilityMethods {
         }
         return price;
     }
+
 
     //TODO - DEPRECATED METHODS
     //prints workbook info (sheet names and numbers)
