@@ -14,6 +14,7 @@ import java.util.*;
 
 public class UtilityMethods {
 
+    //used to direct system out into a printed stream
     private static PrintStream printStream;
 
     //c'tor
@@ -94,10 +95,10 @@ public class UtilityMethods {
             //iterate over all cells in workbook
             for (int i = 1; i <= originalSheet.getLastRowNum(); i++) {
                 originalRow = originalSheet.getRow(i);
-                customerName = dataFormatter.formatCellValue(originalRow.getCell(customerIdCellAddress.getColumn())); //TODO which is better ? dataFormatter.formatCellValue OR getStringCellValue
+                customerName = dataFormatter.formatCellValue(originalRow.getCell(customerIdCellAddress.getColumn()));
                 customerFileName = customerNameToFileName.get(customerName);
                 customerWb = mapCustomerToWb.get(customerFileName);
-                product = originalRow.getCell(productsCol).getStringCellValue();
+                product = dataFormatter.formatCellValue(originalRow.getCell(productsCol));
 
                 //making sure customer exist in map and has a wb file and needs to copy his rows (product=DOX or WPX)
                 if (customerFileName != null && customerWb != null && (product.equals(Constants.WPX) || product.equals(Constants.DOX))) {
@@ -107,7 +108,7 @@ public class UtilityMethods {
                     customerRow = customerSheet.createRow(customerRowIndex);
                     //copy Rows(cell by cell) to customer sheet
                     for (int j = 0; j < originalRow.getLastCellNum(); j++) {
-                        // TODO maybe DO NOT COPY cells of unwanted columns? to avoid deletiong of cells and columns later on
+                        // TODO maybe DO NOT COPY cells of unwanted columns? to avoid deletion of cells and columns later on
                         //if this list contains the current column id, it's approved and can be copied
                         if (approvedColumnList.contains(new Integer(j))) {
                             Cell cell = customerRow.createCell(j);
@@ -132,7 +133,7 @@ public class UtilityMethods {
                             // Set the cell data value
                             switch (originalCell.getCellType()) {
                                 case Cell.CELL_TYPE_BLANK:
-                                    cell.setCellValue(originalCell.getStringCellValue());
+                                    cell.setCellValue(originalCell.getStringCellValue()); // TODO change {getStringCellValue} to {dataFormatter.formatCellValue()} ?
                                     break;
                                 case Cell.CELL_TYPE_BOOLEAN:
                                     cell.setCellValue(originalCell.getBooleanCellValue());
@@ -298,13 +299,13 @@ public class UtilityMethods {
                 switch (cell.getCellType()) {
                     case Cell.CELL_TYPE_STRING:
                         if (shortCode.equalsIgnoreCase("")) {
-                            shortCode = cell.getStringCellValue().trim();
+                            shortCode = cell.getStringCellValue().trim(); // TODO change {getStringCellValue} to {dataFormatter.formatCellValue()} ?
                         } else if (name.equalsIgnoreCase("")) {
                             //2nd column
-                            name = cell.getStringCellValue().trim();
+                            name = cell.getStringCellValue().trim();// TODO change {getStringCellValue} to {dataFormatter.formatCellValue()} ?
                         } else {
                             //random data, leave it
-                            System.out.println("Random data::" + cell.getStringCellValue());
+                            System.out.println("Random data::" + cell.getStringCellValue());// TODO change {getStringCellValue} to {dataFormatter.formatCellValue()} ?
                         }
                         break;
                     case Cell.CELL_TYPE_NUMERIC:
@@ -372,32 +373,40 @@ public class UtilityMethods {
         return customerIdsSet;
     }
 
-    //gets customer names from one sheet, "clean" names from unwanted characters
-    public static Map<String, String> getCustomerNamesAndFileNamesFromSheet(Sheet hssfSheet, int columnIndex) {
-        Map<String, String> customerNameToFile = new HashMap<String, String>();
-        Iterator<Row> rowIterator = hssfSheet.iterator();
+    //gets customer names from a sheet, "cleans" names by removing from unwanted characters
+    public static Map<String, String> getCustomerNamesAndFileNamesFromSheet(Sheet hssfSheet, int columnIndex, Map<String, String> customerNameToFile) {
+        if (customerNameToFile == null) {
+            throw new NullPointerException(Constants.MAP_IS_NULL);
+        }
+        final Iterator<Row> rowIterator = hssfSheet.iterator();
         Iterator<Cell> cellIterator;
         int productsCol;
         String product;
+        final DataFormatter dataFormatter = new DataFormatter();
 
         while (rowIterator.hasNext()) {
             Row row = rowIterator.next();
+
             //make sure product is DOX or WPX before adding the customer to map
             CellAddress cellProduct = findCellByName(hssfSheet, Constants.PRODUCTS_COL);
             if (cellProduct == null) {
                 throw new MissingFormatArgumentException(Constants.PRODUCTS_COLUMN_NOT_FOUND_ERROR);
             }
             productsCol = cellProduct.getColumn();
-            product = row.getCell(productsCol).getStringCellValue();
+            if (row.getCell(productsCol) == null) {
+                continue;
+            }
+            product = dataFormatter.formatCellValue(row.getCell(productsCol));
             if (product.equals(Constants.DOX) || product.equals(Constants.WPX)) {
                 //TODO get the cust name directly instead of iterating over all
                 //TODO example: row.getCell(  findCellByName(hssfSheet, Constants.CUST_NAME_CELL).getColumn())    .getStringCellValue);
                 cellIterator = row.cellIterator();
+                String customerNameAsInSheet;
                 while (cellIterator.hasNext()) {
                     Cell cell = cellIterator.next();
                     //checking if in proper column and in values section, row 0 = header
                     if ((cell.getColumnIndex() == columnIndex) && (cell.getRowIndex() != 0)) {
-                        String customerNameAsInSheet = cell.getStringCellValue();
+                        customerNameAsInSheet = dataFormatter.formatCellValue(cell);
                         //fileName = customer name in upper case -minus illegal characters
                         String customerFileName = customerNameAsInSheet.replaceAll(Constants.REGEX_FILTER_UNWANTED_CHARS, " ").toUpperCase();
                         if (!customerNameToFile.containsKey(customerNameAsInSheet)) {
@@ -422,24 +431,28 @@ public class UtilityMethods {
         //System.out.println("copied file: " + srcPath + " successfully");
     }
 
-    //loads workbook
+    //loads workbook from path to file
     public static Workbook loadWb(String path) {
         //read file contents
+        if (path == null || path.equals("")) {
+            //System.out.println(" path to file: " + path + " is null, empty or blank ");
+            return null;
+        }
         final File file = new File(path);
+        if (file == null || !file.exists()) {
+            //System.out.println(" file with path: " + path + " is null or doesn't exist ");
+            return null;
+        }
         try {
             FileInputStream fIP = new FileInputStream(file);
             //Get the Workbook instance for XLS file
             Workbook workbook = WorkbookFactory.create(fIP);
-            if (file.isFile() && file.exists()) {
-                //System.out.println(path + " Open wb successfully ");
-            } else {
-                //System.out.println(" Error Opening " + path);
-            }
             return workbook;
         } catch (Exception e) {
             e.printStackTrace(printStream);
+            //throw new FileNotFoundException("File not found: " + file);
         }
-        throw new IllegalStateException();
+        return null;
     }
 
     //read customer ids file, returns ID to Name map
@@ -460,9 +473,14 @@ public class UtilityMethods {
 
     //calculate shipment cost(freight) for each customer based on his personal price list wb
     public static void calcFreightForAllCustomers(Map<String, Workbook> mapCustomerFileNameWb, Map<String, Integer> regionsMap, Double fuelSurcharge) {
+        Workbook customerPriceListWb = null;
         for (String customer : mapCustomerFileNameWb.keySet()) {
             //load customer price list
-            final Workbook customerPriceListWb = loadWb(Constants.INPUT_DIR + "/" + Constants.CUSTOMER_PRICE_LISTS + "/" + customer + Constants.XLSX_FILE_ENDING);
+            try {
+                customerPriceListWb = loadWb(Constants.INPUT_DIR + "/" + Constants.CUSTOMER_PRICE_LISTS + "/" + customer + Constants.XLSX_FILE_ENDING);
+            } catch (Exception e) {
+                e.printStackTrace(printStream);
+            }
             if (customerPriceListWb == null) {
                 System.out.println(" customer price list file not found for: " + customer + " needs to be done Manually");
                 continue;
@@ -484,7 +502,7 @@ public class UtilityMethods {
         DataFormatter dataFormatter = new DataFormatter();
         Row row;
         Cell cell;
-        String country;
+        String country, cellStringValue;
 
         //System.out.println("Started calcCustomerFreight for : " + customer);
 
@@ -516,19 +534,22 @@ public class UtilityMethods {
         }
         productsCol = cellProduct.getColumn();
 
-        //iterate over all rows in customer workbook ( 1 row = 1 shipment)
+        //iterate over all rows in customer workbook ( 1x row = 1x shipment)
         for (int i = 1; i <= sheet.getLastRowNum(); i++) {
             //get current row
             row = sheet.getRow(i);
             cell = row.getCell(productsCol);
+            cellStringValue = dataFormatter.formatCellValue(cell);
             //this system is only handling WPX and DOX product types of shipments
-            if (cell.getStringCellValue() == Constants.WPX || cell.getStringCellValue() == Constants.DOX) {
+            if (cellStringValue.equals(Constants.WPX) || cellStringValue.equals(Constants.DOX)) {
                 //get weight value
                 cell = row.getCell(weightCol);
                 weight = Double.parseDouble(dataFormatter.formatCellValue(cell));
+                //System.out.println(" weight is: " + weight );
                 //get shipment des country
                 cell = row.getCell(destinationCol);
                 country = dataFormatter.formatCellValue(cell);
+                //System.out.println(" destination country is: " + country );
 
                 //get zone for country
                 if (regionsMap.containsKey(country)) {
@@ -553,7 +574,7 @@ public class UtilityMethods {
             }
             //any other type has to be done Manually
             else {
-                System.out.println(" Customer WB: " + customer + " Row: " + row.getRowNum() + "Product is: " + cell.getStringCellValue() + " To be done Manually ");
+                System.out.println(" Customer WB: " + customer + " Row: " + row.getRowNum() + "Product is of type: " + cellStringValue + "Needs To be done Manually ");
                 continue;
             }
             //System.out.println("******************************");
@@ -566,46 +587,53 @@ public class UtilityMethods {
      */
     public static double getCustomerPrice(Sheet priceListSheet, double weight, int zone) {
         //rows and columns are Zero based
+        final DataFormatter dataFormatter = new DataFormatter();
         Row row, nextRow;
         Cell cell;
         double baseWeight, nextStepWeight, additionalPrice, nextStepPrice, remWeight, diffPrice, diffWeight, price = 0;
-        final int startRow = 2, endRow = 28, baseWeightCol = 0;
-
-        //go over rows in price list from end to start
-        for (int i = endRow; i >= startRow; i++) {
-            row = priceListSheet.getRow(i);
-            cell = row.getCell(baseWeightCol);
-            baseWeight = cell.getNumericCellValue();
-
-            if (weight == baseWeight) {
-                price = row.getCell(zone).getNumericCellValue();
-                //System.out.println("Found exact weight: " + weight + " Price is: " + price);
-                break;
-            }
-            //avoiding overflow of table
-            else if ((weight > baseWeight) && (i + 1 <= endRow)) {
+        final int startRow = 2, endRow = priceListSheet.getLastRowNum(), baseWeightCol = 0; //TODO movce startRow to consts=2
+        try {
+            //go over rows in price list from end to start
+            for (int i = endRow; i >= startRow; i--) { //TODO easier in while loop? more clear perhaps
+                row = priceListSheet.getRow(i);
+                cell = row.getCell(baseWeightCol);
                 baseWeight = cell.getNumericCellValue();
-                nextRow = priceListSheet.getRow(i + 1);
-                //find closest weight value
-                if ((weight >= cell.getNumericCellValue()) && (weight < priceListSheet.getRow(i + 1).getCell(baseWeightCol).getNumericCellValue())) {
-                    price = row.getCell(zone).getNumericCellValue(); //price for base wight
-                    nextStepPrice = nextRow.getCell(zone).getNumericCellValue(); //price for next step
-                    nextStepWeight = nextRow.getCell(baseWeightCol).getNumericCellValue();
-                    diffWeight = nextStepWeight - baseWeight;
-                    diffPrice = nextStepPrice - price;
-                    remWeight = weight - baseWeight;
-                    additionalPrice = diffPrice / diffWeight * remWeight;
-                    price = price + additionalPrice;
-                    //System.out.println("Found  price for weight: " + weight + ", Price is: " + price);
+
+                //TODO impl better search method here? Bin search?
+                if (weight == baseWeight) {
+                    price = row.getCell(zone).getNumericCellValue();
                     break;
                 }
-            } else {
-                continue;
+                //case: weight is bigger than in max weight table, avoiding overflow by i+1<=endRow
+                else if ((weight > baseWeight) && (i + 1 <= endRow)) {
+                    baseWeight = cell.getNumericCellValue();
+                    //getting next row (bigger weight value)
+                    nextRow = priceListSheet.getRow(i + 1);
+                    nextStepWeight = nextRow.getCell(baseWeightCol).getNumericCellValue();
+
+                    //find closest weight value
+                    if ((weight >= baseWeight) && (weight < nextStepWeight)) {
+                        price = row.getCell(zone).getNumericCellValue(); //price for base wight
+                        nextStepPrice = nextRow.getCell(zone).getNumericCellValue(); //price for next step
+                        diffWeight = nextStepWeight - baseWeight;
+                        diffPrice = nextStepPrice - price;
+                        remWeight = weight - baseWeight;
+                        additionalPrice = diffPrice / diffWeight * remWeight;
+                        price = price + additionalPrice;
+                        //System.out.println("Found  price for weight: " + weight + ", Price is: " + price);
+                        break;
+                    }
+                } else {
+                    continue;
+                }
             }
-        }
-        if (price == 0) {//no price in price list
-            //System.out.println("weight: " + weight + " not found in price list table ");
-            throw new IllegalArgumentException(Constants.WEIGHT_NOT_FOUND_ERROR);
+            if (price == 0) {//no price in price list
+                //System.out.println("weight: " + weight + " not found in price list table ");
+                throw new IllegalArgumentException(Constants.WEIGHT_NOT_FOUND_ERROR);
+            }
+        } catch (Exception e) {
+            e.printStackTrace(printStream);
+            throw e;
         }
         return price;
     }
@@ -664,7 +692,7 @@ public class UtilityMethods {
             Iterator<Cell> cellIterator = row.cellIterator();
 
             //check customer
-            String customerName = row.getCell(customerNameColumn).getStringCellValue();
+            String customerName = row.getCell(customerNameColumn).getStringCellValue();// TODO change {getStringCellValue} to {dataFormatter.formatCellValue()} ?
 
             String pathToFile = "outputdir/customers/workbook " + customerName;
             try {
@@ -683,7 +711,7 @@ public class UtilityMethods {
                     switch (cell.getCellType()) {
                         case Cell.CELL_TYPE_STRING:
                             if (shortCode.equalsIgnoreCase("")) {
-                                shortCode = cell.getStringCellValue().trim();
+                                shortCode = cell.getStringCellValue().trim();// TODO change {getStringCellValue} to {dataFormatter.formatCellValue()} ?
                             } else if (name.equalsIgnoreCase("")) {
                                 //2nd column
                                 name = cell.getStringCellValue().trim();
@@ -958,7 +986,7 @@ public class UtilityMethods {
         //get customer names from invoice wb and map to file names
         for (int i = 0; i < invoiceWb.getNumberOfSheets(); i++) {
             invoiceSheet = invoiceWb.getSheetAt(i);
-            customerNameToFileName.putAll(UtilityMethods.getCustomerNamesAndFileNamesFromSheet(invoiceSheet, customerColName));
+            customerNameToFileName.putAll(UtilityMethods.getCustomerNamesAndFileNamesFromSheet(invoiceSheet, customerColName, customerNameToFileName)); //TODO using put all could be a problem when having same cust on multiple sheets could ovveride it and create multiple files
         }
         return customerNameToFileName;
     }

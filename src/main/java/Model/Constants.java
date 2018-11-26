@@ -53,6 +53,7 @@ public class Constants {
     public static final String FREIGHT_NOT_FOUND_ERROR = "Frieght Cell not found";
     public static final String WEIGHT_NOT_FOUND_ERROR = "Weight Cell not found";
     public static final String DES_COL_NOT_FOUND_ERROR = "Destination Cell not found";
+    public static final String MAP_IS_NULL = "Map is Null";
 
     //DHL invoice file
     public static int FIRST_ROW_NUM = 0;
