@@ -37,7 +37,6 @@ public class UtilityMethods {
         } catch (Exception e) {
             e.printStackTrace(printStream);
         }
-        //System.out.println("******************************");
     }
 
 
@@ -57,9 +56,7 @@ public class UtilityMethods {
                     val.equals(Constants.CUSTOMER_COLUMN_NAME) || val.equals(Constants.REF_NUM_COLUMN_NAME) || val.equals(Constants.CNSGNEE_COL) ||
                     val.equals(Constants.WEIGHT_COL) || val.equals(Constants.FREIGHT_NEW_FORMAT_SHP) || val.equals(Constants.FUEL_NEW_FORMAT)) {
                 approvedColumnList.add(new Integer(cell.getColumnIndex()));
-                //System.out.println("added approved column: " + cell.getColumnIndex() + " Cell: " + val);
             }
-
         }
         return approvedColumnList;
     }
@@ -228,10 +225,11 @@ public class UtilityMethods {
 
     //returns a map of Customer to workbook, creates a new WB file per customer including wb headlines
     public static Map<String, Workbook> createCustomerWbMap(Row firstRow, Map<String, String> customerNameToFileName) {
-        final Map<String, Workbook> mapCustomerFileNameWb = new HashMap<String, Workbook>();
+        final Map<String, Workbook> mapCustomerFileNameWb = new HashMap<>();
         for (String customerFileName : customerNameToFileName.values()) {
-            mapCustomerFileNameWb.put(customerFileName, createCustomerWb(firstRow));
-            //System.out.println("created customer wb with name: " + customerFileName);
+            if(!mapCustomerFileNameWb.containsKey(customerFileName)){
+                mapCustomerFileNameWb.put(customerFileName, createCustomerWb(firstRow));
+            }
         }
         return mapCustomerFileNameWb;
     }
@@ -261,46 +259,6 @@ public class UtilityMethods {
         return wb;
     }
 
-    //prints all cell data from a given sheet
-    private static void printDataFromSheet(Sheet hssfSheet) {
-        //iterate over sheet rows
-        Iterator<Row> rowIterator = hssfSheet.iterator();
-        //loop through sheet
-        while (rowIterator.hasNext()) {
-            String name = "";
-            String shortCode = "";
-
-            //Get the row object
-            Row row = rowIterator.next();
-
-            //Every row has columns, get the column iterator and iterate over them
-            Iterator<Cell> cellIterator = row.cellIterator();
-
-            //loop through cells
-            while (cellIterator.hasNext()) {
-                //Get the Cell object
-                Cell cell = cellIterator.next();
-                //check the cell type and process accordingly
-                switch (cell.getCellType()) {
-                    case Cell.CELL_TYPE_STRING:
-                        if (shortCode.equalsIgnoreCase("")) {
-                            shortCode = cell.getStringCellValue().trim(); // TODO change {getStringCellValue} to {dataFormatter.formatCellValue()} ?
-                        } else if (name.equalsIgnoreCase("")) {
-                            //2nd column
-                            name = cell.getStringCellValue().trim();// TODO change {getStringCellValue} to {dataFormatter.formatCellValue()} ?
-                        } else {
-                            //random data, leave it
-                            System.out.println("Random data::" + cell.getStringCellValue());// TODO change {getStringCellValue} to {dataFormatter.formatCellValue()} ?
-                        }
-                        break;
-                    case Cell.CELL_TYPE_NUMERIC:
-                        System.out.println("Random data::" + cell.getNumericCellValue());
-                }
-            } //end of cell iterator
-
-        } //end of rows iterator
-    }
-
     //finds cell address by name
     public static CellAddress findCellByName(Sheet hssfSheet, String cellName) {
         //row iterator
@@ -326,80 +284,35 @@ public class UtilityMethods {
         return null;
     }
 
-    //gets customer IDs from one sheet and changes cell values to correct names
-    public static HashSet<String> getCustomerIdsFromSheet(Sheet sheet, int columnIndex) {
-        final HashSet<String> customerIdsSet = new HashSet<String>();
-        Iterator<Row> rowIterator = sheet.iterator();
-        Iterator<Cell> cellIterator;
-        DataFormatter dataFormatter = new DataFormatter();
-        Cell cell;
-        Row row;
-        String cellVal;
-        //iterate over rows
-        while (rowIterator.hasNext()) {
-            row = rowIterator.next();
-            cellIterator = row.cellIterator();
-            //iterate over cells
-            while (cellIterator.hasNext()) {
-                cell = cellIterator.next();
-                //checking if in proper column and in values section
-                if ((cell.getColumnIndex() == columnIndex) && (cell.getRowIndex() != 0)) {
-                    //validates and cleans cell value if, customer ID is allowd : [0-9]
-                    cellVal = dataFormatter.formatCellValue(cell);
-                    if (!cellVal.equals(cellVal.replaceAll(Constants.REGEX_ONLY_NUMBERS, Constants.BLANK))) {
-                        //System.out.println("old Cell Value: " + cellVal + " changed to new cell value: " + cellVal.replaceAll(Constants.REGEX_ONLY_NUMBERS, Constants.BLANK));
-                        cell.setCellValue(cellVal.replaceAll(Constants.REGEX_ONLY_NUMBERS, Constants.BLANK)); //TODO correct place to change cell values ?
-                    }
-                    customerIdsSet.add(dataFormatter.formatCellValue(cell));
-                    break;
-                }
-            }
-        }
-        return customerIdsSet;
-    }
-
-    //gets customer names from a sheet, "cleans" names by removing from unwanted characters
-    public static Map<String, String> getCustomerNamesAndFileNamesFromSheet(Sheet hssfSheet, int columnIndex, Map<String, String> customerNameToFile) {
+    //gets customer names from a sheet, "cleans" names by removing from unwanted characters, returns maps of customer names to file names
+    public static Map<String, String> getCustomerNamesAndFileNamesFromSheet(Sheet hssfSheet, int NameColIndex, Map<String, String> customerNameToFile) {
         if (customerNameToFile == null) {
             throw new NullPointerException(Constants.MAP_IS_NULL);
         }
         final Iterator<Row> rowIterator = hssfSheet.iterator();
-        Iterator<Cell> cellIterator;
-        int productsCol;
+        Cell productCell;
         String product;
         final DataFormatter dataFormatter = new DataFormatter();
-
+        final CellAddress productCellAddress = findCellByName(hssfSheet, Constants.PRODUCTS_COL);
+        if (productCellAddress == null) {
+            throw new MissingFormatArgumentException(Constants.PRODUCTS_COLUMN_NOT_FOUND_ERROR);
+        }
         while (rowIterator.hasNext()) {
             Row row = rowIterator.next();
-
-            //make sure product is DOX or WPX before adding the customer to map
-            CellAddress cellProduct = findCellByName(hssfSheet, Constants.PRODUCTS_COL);
-            if (cellProduct == null) {
-                throw new MissingFormatArgumentException(Constants.PRODUCTS_COLUMN_NOT_FOUND_ERROR);
-            }
-            productsCol = cellProduct.getColumn();
-            if (row.getCell(productsCol) == null) {
+            productCell = row.getCell(productCellAddress.getColumn());
+            if (productCell == null) {
                 continue;
             }
-            product = dataFormatter.formatCellValue(row.getCell(productsCol));
+            product = dataFormatter.formatCellValue(productCell);
             if (product.equals(Constants.DOX) || product.equals(Constants.WPX)) {
-                //TODO get the cust name directly instead of iterating over all
-                //TODO example: row.getCell(  findCellByName(hssfSheet, Constants.CUST_NAME_CELL).getColumn())    .getStringCellValue);
-                cellIterator = row.cellIterator();
-                String customerNameAsInSheet;
+                //extract customer/shipper_name from row
+                String customerNameAsInSheet = dataFormatter.formatCellValue(row.getCell(NameColIndex));
                 String customerFileName;
-                while (cellIterator.hasNext()) {
-                    Cell cell = cellIterator.next();
-                    //checking if in proper column and in values section, row 0 = header
-                    if ((cell.getColumnIndex() == columnIndex) && (cell.getRowIndex() != 0)) {
-                        customerNameAsInSheet = dataFormatter.formatCellValue(cell);
-                        //fileName = customer name in upper case -minus illegal characters
-                        customerFileName = customerNameAsInSheet.replaceAll(Constants.REGEX_FILTER_UNWANTED_CHARS, "").replaceAll(Constants.REGEX_REPLACE_2_SPACES_WITH_1, " ").trim().toUpperCase();
-                        if (!customerNameToFile.containsKey(customerNameAsInSheet)) {
-                            customerNameToFile.put(customerNameAsInSheet, customerFileName);
-                        }
-                        break;
-                    }
+                if (!customerNameToFile.containsKey(customerNameAsInSheet)) {
+                    //fileName = customer name in upper case without illegal characters
+                    customerFileName = customerNameAsInSheet.replaceAll(Constants.REGEX_FILTER_UNWANTED_CHARS, "")
+                            .replaceAll(Constants.REGEX_REPLACE_2_SPACES_WITH_1, " ").trim().toUpperCase();
+                    customerNameToFile.put(customerNameAsInSheet, customerFileName);
                 }
             }
         }
@@ -461,7 +374,10 @@ public class UtilityMethods {
         return regionToCountryMap;
     }
 
-    //calculate shipment cost(freight) for each customer based on his personal price list wb
+    /**
+     * calculate shipment cost(freight) for each customer based on his personal price list wb
+     * in case customer price list file is absent - it is skipped and logged to be done manually
+     */
     public static void calcFreightForAllCustomers(Map<String, Workbook> mapCustomerFileNameWb, Map<String, Integer> regionsMap, Double fuelSurcharge) {
         Workbook customerPriceListWb = null;
         for (String customer : mapCustomerFileNameWb.keySet()) {
@@ -624,7 +540,6 @@ public class UtilityMethods {
                 }
             }
             if (price == 0) {//no price in price list
-                //System.out.println("weight: " + weight + " not found in price list table ");
                 throw new IllegalArgumentException(Constants.WEIGHT_NOT_FOUND_ERROR);
             }
         } catch (Exception e) {
@@ -632,5 +547,23 @@ public class UtilityMethods {
             throw e;
         }
         return price;
+    }
+
+    //populates map of Customer names to customer File Names from workbook (without illegal characters
+    public static Map<String, String> populateCustomerAndFileNames(Workbook invoiceWb) {
+        Sheet invoiceSheet = invoiceWb.getSheetAt(Constants.FIRST_SHEET_NUM);
+        final int customerColName;
+        final CellAddress cellCustomerName = UtilityMethods.findCellByName(invoiceSheet, Constants.CUSTOMER_COLUMN_NAME);
+        if (cellCustomerName == null) {
+            throw new IllegalArgumentException(Constants.CUSTOMER_COLUMN_NOT_FOUND_ERROR);
+        }
+        customerColName = cellCustomerName.getColumn();
+        final Map<String, String> customerNameToFileName = new HashMap<>();
+        //get customer names from invoice wb and map to file names
+        for (int i = 0; i < invoiceWb.getNumberOfSheets(); i++) {
+            invoiceSheet = invoiceWb.getSheetAt(i);
+            customerNameToFileName.putAll(UtilityMethods.getCustomerNamesAndFileNamesFromSheet(invoiceSheet, customerColName, customerNameToFileName)); //TODO using put all could be a problem when having same cust on multiple sheets could override it and create multiple files
+        }
+        return customerNameToFileName;
     }
 }

@@ -339,24 +339,6 @@ public class OldMethods {
 //        }
 //    }
 
-    //populates map of Customer names to customer File Names from workbook (without illegal characters
-//    public static Map<String, String> populateCustomerAndFileNames(Workbook invoiceWb) {
-//        Sheet invoiceSheet = invoiceWb.getSheetAt(Constants.FIRST_SHEET_NUM);
-//        int customerColName;
-//        CellAddress cellCustomerName = UtilityMethods.findCellByName(invoiceSheet, Constants.CUSTOMER_COLUMN_NAME);
-//        if (cellCustomerName == null) {
-//            throw new IllegalArgumentException(Constants.CUSTOMER_COLUMN_NOT_FOUND_ERROR);
-//        }
-//        customerColName = cellCustomerName.getColumn();
-//        final Map<String, String> customerNameToFileName = new HashMap<String, String>();
-//        //get customer names from invoice wb and map to file names
-//        for (int i = 0; i < invoiceWb.getNumberOfSheets(); i++) {
-//            invoiceSheet = invoiceWb.getSheetAt(i);
-//            customerNameToFileName.putAll(UtilityMethods.getCustomerNamesAndFileNamesFromSheet(invoiceSheet, customerColName, customerNameToFileName)); //TODO using put all could be a problem when having same cust on multiple sheets could ovveride it and create multiple files
-//        }
-//        return customerNameToFileName;
-//    }
-
     //log and report method to check if each customer in the map has a respective price list file
 //    public static void printPriceListFilesInfo(Map<String, String> customerNameToFileName) {
 //        //get names of customer price list folder
@@ -549,5 +531,76 @@ public class OldMethods {
 //            //we created our pdf file..
 //            input_document.close(); //close xls
 //        }
+
+    //gets customer IDs from one sheet and changes cell values to correct names
+//    public static HashSet<String> getCustomerIdsFromSheet(Sheet sheet, int columnIndex) {
+//        final HashSet<String> customerIdsSet = new HashSet<String>();
+//        Iterator<Row> rowIterator = sheet.iterator();
+//        Iterator<Cell> cellIterator;
+//        DataFormatter dataFormatter = new DataFormatter();
+//        Cell cell;
+//        Row row;
+//        String cellVal;
+//        //iterate over rows
+//        while (rowIterator.hasNext()) {
+//            row = rowIterator.next();
+//            cellIterator = row.cellIterator();
+//            //iterate over cells
+//            while (cellIterator.hasNext()) {
+//                cell = cellIterator.next();
+//                //checking if in proper column and in values section
+//                if ((cell.getColumnIndex() == columnIndex) && (cell.getRowIndex() != 0)) {
+//                    //validates and cleans cell value if, customer ID is allowd : [0-9]
+//                    cellVal = dataFormatter.formatCellValue(cell);
+//                    if (!cellVal.equals(cellVal.replaceAll(Constants.REGEX_ONLY_NUMBERS, Constants.BLANK))) {
+//                        cell.setCellValue(cellVal.replaceAll(Constants.REGEX_ONLY_NUMBERS, Constants.BLANK)); //TODO correct place to change cell values ?
+//                    }
+//                    customerIdsSet.add(dataFormatter.formatCellValue(cell));
+//                    break;
+//                }
+//            }
+//        }
+//        return customerIdsSet;
+//    }
+    //prints all cell data from a given sheet
+//    private static void printDataFromSheet(Sheet hssfSheet) {
+//        //iterate over sheet rows
+//        Iterator<Row> rowIterator = hssfSheet.iterator();
+//        //loop through sheet
+//        while (rowIterator.hasNext()) {
+//            String name = "";
+//            String shortCode = "";
+//
+//            //Get the row object
+//            Row row = rowIterator.next();
+//
+//            //Every row has columns, get the column iterator and iterate over them
+//            Iterator<Cell> cellIterator = row.cellIterator();
+//
+//            //loop through cells
+//            while (cellIterator.hasNext()) {
+//                //Get the Cell object
+//                Cell cell = cellIterator.next();
+//                //check the cell type and process accordingly
+//                switch (cell.getCellType()) {
+//                    case Cell.CELL_TYPE_STRING:
+//                        if (shortCode.equalsIgnoreCase("")) {
+//                            shortCode = cell.getStringCellValue().trim(); // TODO change {getStringCellValue} to {dataFormatter.formatCellValue()} ?
+//                        } else if (name.equalsIgnoreCase("")) {
+//                            //2nd column
+//                            name = cell.getStringCellValue().trim();// TODO change {getStringCellValue} to {dataFormatter.formatCellValue()} ?
+//                        } else {
+//                            //random data, leave it
+//                            System.out.println("Random data::" + cell.getStringCellValue());// TODO change {getStringCellValue} to {dataFormatter.formatCellValue()} ?
+//                        }
+//                        break;
+//                    case Cell.CELL_TYPE_NUMERIC:
+//                        System.out.println("Random data::" + cell.getNumericCellValue());
+//                }
+//            } //end of cell iterator
+//
+//        } //end of rows iterator
+//    }
+
 
 }

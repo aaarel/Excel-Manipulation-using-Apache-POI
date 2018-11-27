@@ -11,15 +11,13 @@ import java.io.PrintStream;
 import java.util.Map;
 
 /**
- * Created by Ariel Peretz, Smartship 2018
+ * Created by Ariel Peretz, Smartship inc 2018
  */
 
 public class SmartShipApplication {
 
-
     /**
      * Main Application flow, running all activities one by one
-     *
      * @param fuel
      * @return boolean that represents if this function completed successfully
      */
