@@ -93,6 +93,9 @@ public class SmartShipApplication {
             //write files do disk
             utilityMethods.saveAndCloseWbFiles(mapCustomerFileNameWb);
 
+            //delete invoice copy file
+            utilityMethods.deleteFile(Constants.INVOICE_FILE_DES_PATH);
+
 
             logFile.close();
             System.out.println(" Finished SmartShipApplication main ");
