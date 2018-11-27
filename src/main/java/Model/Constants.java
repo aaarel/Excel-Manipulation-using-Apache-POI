@@ -17,10 +17,11 @@ public class Constants {
 
     //regular expressions
     public static final String REGEX_ONLY_NUMBERS = "[0-9]\\+";
-    public static final String REGEX_FILTER_UNWANTED_CHARS = "[\\-\\+\\.\\^:,/]";
+    public static final String REGEX_FILTER_UNWANTED_CHARS = "[\\+\\.\\^:,/]";
 
     //public static final String REGEX_ONLY_NUMBERS_A_TO_Z_LETTERS = "\\^[a-z0-9]\\+$/i";
     public static final String REGEX_ILLEGAL_CHARS = "[/.,!@\\\\#$>:;|<%^&?*()-]";
+    public static final String REGEX_REPLACE_2_SPACES_WITH_1 = "\\s{2,}";
     public static final String REF_NUM_COLUMN_NAME = "Reference_no";
     public static final String BLANK = "";
     @Deprecated
